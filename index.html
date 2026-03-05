@@ -2,1145 +2,904 @@
 <html lang="fr">
 <head>
 <meta charset="UTF-8"/>
-<meta name="viewport" content="width=device-width,initial-scale=1.0,maximum-scale=1.0,user-scalable=no"/>
-<meta name="apple-mobile-web-app-capable" content="yes"/>
-<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no"/>
 <meta name="mobile-web-app-capable" content="yes"/>
-<title>RADAR · ANPR</title>
+<meta name="apple-mobile-web-app-capable" content="yes"/>
+<title>RADAR ANPR</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"/>
 <link href="https://fonts.googleapis.com/css2?family=Russo+One&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet"/>
-
-<!-- TensorFlow.js (WebGL → GPU téléphone) -->
-<script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@4.18.0/dist/tf.min.js"></script>
-<!-- Tesseract.js v5 (WASM OCR) -->
-<script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
-
 <style>
-/* ═══════════════════════════════════════════════
-   VARIABLES
-═══════════════════════════════════════════════ */
+*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent;}
 :root{
-  --bg:     #060609;
-  --panel:  #0e0e17;
-  --border: #1e1e32;
-  --yel:    #FFE033;   /* rectangle plaque */
-  --yelglow:rgba(255,224,51,0.35);
-  --red:    #FF2244;
-  --redglow:rgba(255,34,68,0.4);
-  --green:  #00E5A0;
-  --dim:    #3a3a55;
-  --text:   #c4c4df;
-  --mono:   'Space Mono', monospace;
-  --title:  'Russo One', sans-serif;
+  --bg:#0a0a0c;
+  --bg2:#111116;
+  --yellow:#FFE033;
+  --red:#FF3333;
+  --green:#33FF88;
+  --panel:#16161e;
+  --border:#2a2a3a;
+  --text:#e8e8f0;
+  --dim:#666680;
 }
+html,body{width:100%;height:100%;overflow:hidden;background:var(--bg);color:var(--text);font-family:'Space Mono',monospace;}
 
-*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
-html,body{
-  width:100%;height:100%;
-  background:var(--bg);
-  color:var(--text);
-  font-family:var(--mono);
-  overflow:hidden;
-  -webkit-tap-highlight-color:transparent;
-  touch-action:manipulation;
-  user-select:none;
-  -webkit-user-select:none;
-}
-
-/* ═══════════════════════════════════════════════
-   HINT PORTRAIT → demander de tourner
-═══════════════════════════════════════════════ */
+/* ===== PORTRAIT WALL ===== */
 #portrait-wall{
-  display:none;
-  position:fixed;inset:0;z-index:9999;
+  display:none;position:fixed;inset:0;z-index:9999;
   background:var(--bg);
-  flex-direction:column;
-  align-items:center;justify-content:center;
-  gap:24px;
+  flex-direction:column;align-items:center;justify-content:center;gap:24px;
 }
-.pw-phone{
-  font-size:72px;
-  animation:pw-spin 2s ease-in-out infinite;
-}
-@keyframes pw-spin{
-  0%  {transform:rotate(-90deg) scale(1)}
-  40% {transform:rotate(0deg)   scale(1.1)}
-  60% {transform:rotate(0deg)   scale(1.1)}
-  100%{transform:rotate(-90deg) scale(1)}
-}
-.pw-text{
-  font-family:var(--title);
-  font-size:14px;letter-spacing:4px;
-  color:var(--green);text-align:center;line-height:2;
-  text-transform:uppercase;
-}
-
 @media(orientation:portrait){
   #portrait-wall{display:flex!important;}
   #splash,#scanner{display:none!important;}
 }
+.rotate-icon{font-size:72px;animation:rot 2s ease-in-out infinite;}
+@keyframes rot{0%,100%{transform:rotate(0deg);}50%{transform:rotate(90deg);}}
+#portrait-wall p{font-family:'Russo One',sans-serif;font-size:18px;color:var(--yellow);text-align:center;letter-spacing:2px;}
 
-/* ═══════════════════════════════════════════════
-   ÉCRAN D'ACCUEIL (SPLASH)
-═══════════════════════════════════════════════ */
+/* ===== SPLASH ===== */
 #splash{
-  position:fixed;inset:0;z-index:100;
-  display:flex;
-  background:var(--bg);
+  display:flex;width:100%;height:100%;
+  align-items:center;justify-content:center;
+  gap:40px;padding:30px;
 }
+.splash-left{flex:1;display:flex;align-items:center;justify-content:center;}
+.splash-right{flex:1;display:flex;flex-direction:column;gap:20px;}
 
-/* Moitié gauche — visuel radar */
-.splash-left{
-  flex:1;
-  display:flex;align-items:center;justify-content:center;
-  position:relative;
-  overflow:hidden;
-}
+/* SVG Radar */
+#radar-svg{width:min(220px,40vw);height:min(220px,40vw);}
+.radar-sweep{transform-origin:50% 50%;animation:sweep 2.5s linear infinite;}
+@keyframes sweep{from{transform:rotate(0deg);}to{transform:rotate(360deg);}}
+.radar-blip{animation:blip 2.5s ease-out infinite;}
+@keyframes blip{0%,100%{opacity:0;}40%,60%{opacity:1;}}
 
-.radar-svg{
-  width:min(55vw, 55vh);
-  height:min(55vw, 55vh);
-  animation:radar-rot 4s linear infinite;
-  filter:drop-shadow(0 0 20px rgba(255,34,68,0.5));
-}
-@keyframes radar-rot{to{transform:rotate(360deg)}}
+.app-title{font-family:'Russo One',sans-serif;font-size:28px;color:var(--yellow);letter-spacing:4px;text-transform:uppercase;}
+.app-sub{font-size:11px;color:var(--dim);letter-spacing:3px;text-transform:uppercase;margin-top:-14px;}
 
-.splash-glow{
-  position:absolute;inset:0;
-  background:radial-gradient(ellipse at 50% 50%,rgba(255,34,68,.08) 0%,transparent 70%);
-  pointer-events:none;
-}
-
-/* Moitié droite — infos + bouton */
-.splash-right{
-  width:320px;flex-shrink:0;
-  display:flex;flex-direction:column;
-  justify-content:center;
-  padding:32px 36px;
-  border-left:1px solid var(--border);
-  gap:20px;
-}
-
-.splash-logo{
-  font-family:var(--title);
-  font-size:52px;letter-spacing:6px;
-  color:#fff;line-height:1;
-}
-.splash-sub{
-  font-size:9px;letter-spacing:4px;
-  color:var(--red);text-transform:uppercase;
-  margin-top:-12px;
-}
-
-.splash-features{
-  display:flex;flex-direction:column;gap:8px;
-}
-.sf{
-  display:flex;align-items:center;gap:10px;
-  font-size:10px;letter-spacing:1px;color:var(--dim);
-}
-.sf::before{
-  content:'';width:6px;height:6px;
-  border-radius:50%;flex-shrink:0;
-  background:var(--green);
-  box-shadow:0 0 6px var(--green);
-}
-
-.bl-pill{
-  display:flex;align-items:center;gap:8px;
-  background:var(--panel);border:1px solid var(--border);
-  border-radius:3px;padding:10px 14px;
-}
-.bl-dot{
-  width:7px;height:7px;border-radius:50%;
-  background:var(--red);box-shadow:0 0 6px var(--red);
-  flex-shrink:0;animation:bldot 1.5s ease-in-out infinite;
-}
-@keyframes bldot{50%{opacity:.3}}
-.bl-text{font-size:10px;letter-spacing:1px;color:var(--text);}
-.bl-text strong{color:var(--red);}
+.stat-row{display:flex;gap:10px;}
+.stat-box{flex:1;background:var(--panel);border:1px solid var(--border);border-radius:6px;padding:10px;text-align:center;}
+.stat-box .val{font-family:'Russo One',sans-serif;font-size:20px;color:var(--yellow);}
+.stat-box .lbl{font-size:9px;color:var(--dim);letter-spacing:2px;text-transform:uppercase;margin-top:2px;}
 
 #btn-start{
-  height:52px;background:var(--red);border:none;
-  border-radius:3px;color:#fff;
-  font-family:var(--title);font-size:16px;
-  letter-spacing:4px;text-transform:uppercase;
-  cursor:pointer;position:relative;overflow:hidden;
-  box-shadow:0 0 30px var(--redglow);
-  transition:transform .1s,box-shadow .2s;
+  background:var(--yellow);color:#000;
+  border:none;border-radius:6px;
+  padding:14px 28px;
+  font-family:'Russo One',sans-serif;font-size:16px;letter-spacing:3px;
+  cursor:pointer;text-transform:uppercase;
+  transition:transform .1s,box-shadow .1s;
+  box-shadow:0 0 20px rgba(255,224,51,.3);
 }
-#btn-start::before{
-  content:'';position:absolute;inset:0;
-  background:linear-gradient(135deg,rgba(255,255,255,.12) 0%,transparent 50%);
-}
-#btn-start:active{transform:scale(.97);box-shadow:0 0 14px var(--redglow);}
+#btn-start:active{transform:scale(.97);}
 
-.splash-actions{display:flex;gap:8px;}
-.sa-btn{
-  flex:1;padding:10px 0;
-  background:var(--panel);border:1px solid var(--border);
-  border-radius:3px;color:var(--text);
-  font-family:var(--mono);font-size:9px;
-  letter-spacing:2px;text-transform:uppercase;
-  cursor:pointer;text-align:center;
-  transition:border-color .15s;
-}
-.sa-btn:active{border-color:var(--green);}
+.hint{font-size:9px;color:var(--dim);letter-spacing:1px;line-height:1.6;}
 
-/* ═══════════════════════════════════════════════
-   SCANNER (mode paysage)
-═══════════════════════════════════════════════ */
+/* ===== SCANNER ===== */
 #scanner{
-  display:none;
-  width:100vw;height:100dvh;
+  display:none;width:100%;height:100%;position:relative;
   flex-direction:row;
-  position:relative;
+}
+#cam-wrap{
+  position:relative;flex:1;overflow:hidden;background:#000;
+}
+#video{width:100%;height:100%;object-fit:cover;}
+#overlay{position:absolute;inset:0;pointer-events:none;}
+
+/* HUD corners */
+.hud-corner{position:absolute;width:22px;height:22px;border-color:var(--green);border-style:solid;}
+.hud-tl{top:10px;left:10px;border-width:2px 0 0 2px;}
+.hud-tr{top:10px;right:10px;border-width:2px 2px 0 0;}
+.hud-bl{bottom:10px;left:10px;border-width:0 0 2px 2px;}
+.hud-br{bottom:10px;right:10px;border-width:0 2px 2px 0;}
+
+/* Scan line */
+#scanline{position:absolute;left:0;right:0;height:2px;background:linear-gradient(90deg,transparent,var(--green),transparent);box-shadow:0 0 8px var(--green);animation:scanmove 3s linear infinite;top:0;}
+@keyframes scanmove{0%{top:0%;}100%{top:100%;}}
+
+/* Status badge */
+#status-badge{
+  position:absolute;top:14px;left:50%;transform:translateX(-50%);
+  background:rgba(10,10,12,.8);border:1px solid var(--border);border-radius:20px;
+  padding:4px 14px;font-size:10px;letter-spacing:2px;color:var(--green);
+  backdrop-filter:blur(4px);
 }
 
-/* ── Zone caméra ── */
-#cam{
-  position:relative;
-  flex:1;min-width:0;
-  background:#000;overflow:hidden;
+/* Side panel */
+#side-panel{
+  width:190px;background:var(--panel);border-left:1px solid var(--border);
+  display:flex;flex-direction:column;padding:10px;gap:8px;overflow:hidden;
+}
+.panel-title{font-family:'Russo One',sans-serif;font-size:11px;color:var(--yellow);letter-spacing:3px;text-transform:uppercase;padding-bottom:6px;border-bottom:1px solid var(--border);}
+.mini-stat{display:flex;justify-content:space-between;align-items:center;font-size:10px;}
+.mini-stat .k{color:var(--dim);}
+.mini-stat .v{font-family:'Russo One',sans-serif;color:var(--yellow);}
+
+#last-plate{
+  background:var(--bg);border:1px solid var(--yellow);border-radius:6px;
+  padding:8px;text-align:center;
+  font-family:'Russo One',sans-serif;font-size:18px;color:var(--yellow);
+  letter-spacing:3px;min-height:44px;display:flex;align-items:center;justify-content:center;
 }
 
-#video{
-  width:100%;height:100%;
-  object-fit:cover;display:block;
+#history-list{flex:1;overflow-y:auto;display:flex;flex-direction:column;gap:4px;}
+.hist-item{
+  background:var(--bg);border:1px solid var(--border);border-radius:4px;
+  padding:5px 8px;font-size:9px;display:flex;flex-direction:column;gap:2px;
+}
+.hist-item .hp{font-family:'Russo One',sans-serif;color:var(--text);font-size:11px;letter-spacing:2px;}
+.hist-item .ht{color:var(--dim);}
+.hist-item.danger{border-color:var(--red);}
+.hist-item.danger .hp{color:var(--red);}
+
+.panel-btn{
+  border:none;border-radius:5px;padding:7px;font-family:'Space Mono',monospace;
+  font-size:9px;letter-spacing:1px;cursor:pointer;text-transform:uppercase;
+}
+.btn-yellow{background:rgba(255,224,51,.12);color:var(--yellow);border:1px solid var(--yellow);}
+.btn-red{background:rgba(255,51,51,.12);color:var(--red);border:1px solid var(--red);}
+.btn-dim{background:var(--bg);color:var(--dim);border:1px solid var(--border);}
+
+/* ===== ALERT OVERLAY ===== */
+#alert-overlay{
+  display:none;position:fixed;inset:0;z-index:1000;
+  background:rgba(200,0,0,.92);
+  flex-direction:column;align-items:center;justify-content:center;gap:16px;
+  animation:flashbg .3s ease-in-out infinite alternate;
+}
+@keyframes flashbg{from{background:rgba(200,0,0,.92);}to{background:rgba(255,0,0,.98);}}
+#alert-plate{font-family:'Russo One',sans-serif;font-size:48px;color:#fff;letter-spacing:6px;text-shadow:0 0 30px #fff;}
+#alert-msg{font-family:'Russo One',sans-serif;font-size:18px;color:#fff;letter-spacing:3px;text-align:center;}
+#btn-dismiss{
+  background:#fff;color:#c00;border:none;border-radius:6px;
+  padding:12px 32px;font-family:'Russo One',sans-serif;font-size:14px;cursor:pointer;
+  letter-spacing:2px;margin-top:10px;
 }
 
-/* Canvas overlay — rectangle jaune */
-#cv{
-  position:absolute;inset:0;
-  pointer-events:none;
+/* ===== BLACKLIST MODAL ===== */
+#bl-modal{
+  display:none;position:fixed;inset:0;z-index:800;
+  background:rgba(0,0,0,.85);align-items:center;justify-content:center;
 }
+#bl-inner{
+  background:var(--panel);border:1px solid var(--border);border-radius:10px;
+  width:320px;max-width:90vw;padding:20px;display:flex;flex-direction:column;gap:12px;
+}
+#bl-inner h3{font-family:'Russo One',sans-serif;color:var(--yellow);letter-spacing:3px;}
+#bl-input{
+  background:var(--bg);border:1px solid var(--border);border-radius:6px;
+  color:var(--text);padding:10px;font-family:'Space Mono',monospace;font-size:14px;
+  letter-spacing:2px;text-transform:uppercase;width:100%;
+}
+#bl-list{display:flex;flex-direction:column;gap:6px;max-height:160px;overflow-y:auto;}
+.bl-entry{
+  display:flex;justify-content:space-between;align-items:center;
+  background:var(--bg);border:1px solid var(--red);border-radius:5px;padding:7px 10px;
+}
+.bl-entry span{font-family:'Russo One',sans-serif;color:var(--red);letter-spacing:2px;}
+.bl-del{background:none;border:none;color:var(--dim);cursor:pointer;font-size:16px;}
+.bl-del:hover{color:var(--red);}
+.row-btns{display:flex;gap:8px;}
 
-/* Coins HUD */
-.corner{
-  position:absolute;
-  width:18px;height:18px;
-  border-color:rgba(0,229,160,.4);
-  border-style:solid;
-  pointer-events:none;
-}
-.c-tl{top:10px;left:10px;border-width:2px 0 0 2px;}
-.c-tr{top:10px;right:10px;border-width:2px 2px 0 0;}
-.c-bl{bottom:10px;left:10px;border-width:0 0 2px 2px;}
-.c-br{bottom:10px;right:10px;border-width:0 2px 2px 0;}
+/* scrollbar */
+::-webkit-scrollbar{width:3px;}
+::-webkit-scrollbar-thumb{background:var(--border);}
 
-/* Ligne de scan animée */
-.scanline{
-  position:absolute;left:0;right:0;height:1px;
-  background:linear-gradient(90deg,transparent 0%,var(--green) 35%,rgba(0,229,160,.9) 50%,var(--green) 65%,transparent 100%);
-  box-shadow:0 0 10px var(--green);
-  animation:scananim 2.8s linear infinite;
-  opacity:.45;pointer-events:none;
+/* Loading */
+#loading{
+  display:none;position:fixed;inset:0;z-index:500;
+  background:var(--bg);flex-direction:column;align-items:center;justify-content:center;gap:16px;
 }
-@keyframes scananim{0%{top:6%}50%{top:92%}100%{top:6%}}
-
-/* HUD status centré haut */
-#hud{
-  position:absolute;top:8px;left:50%;
-  transform:translateX(-50%);
-  font-family:var(--mono);font-size:9px;
-  letter-spacing:2px;color:var(--green);
-  background:rgba(0,0,0,.6);padding:3px 10px;
-  border-radius:2px;pointer-events:none;
-  white-space:nowrap;z-index:10;
-}
-
-/* Badge FPS bas gauche */
-#fps{
-  position:absolute;bottom:8px;left:10px;
-  font-size:8px;letter-spacing:1px;color:var(--dim);
-  pointer-events:none;
-}
-
-/* ── Panneau droit ── */
-#panel{
-  width:190px;flex-shrink:0;
-  background:var(--panel);
-  border-left:1px solid var(--border);
-  display:flex;flex-direction:column;
-  overflow:hidden;
-}
-
-.prow{
-  padding:8px 10px;
-  border-bottom:1px solid var(--border);
-}
-.plbl{
-  font-size:7px;letter-spacing:2px;
-  color:var(--dim);text-transform:uppercase;margin-bottom:3px;
-}
-
-/* Dernière plaque */
-#lp{
-  font-family:var(--title);
-  font-size:22px;letter-spacing:3px;
-  color:var(--yel);line-height:1;
-  text-shadow:0 0 16px var(--yelglow);
-}
-#lp.danger{color:var(--red);text-shadow:0 0 16px var(--redglow);}
-
-/* Barre de confiance */
-#cbar-wrap{height:2px;background:var(--border);border-radius:1px;margin-top:5px;}
-#cbar{height:100%;width:0%;background:var(--yel);border-radius:1px;transition:width .4s;}
-
-/* Stats */
-.stats{display:flex;gap:5px;}
-.stat{
-  flex:1;background:var(--bg);border:1px solid var(--border);
-  border-radius:2px;padding:5px 0;text-align:center;
-}
-.stat-n{font-family:var(--title);font-size:15px;color:var(--text);}
-.stat-l{font-size:6px;letter-spacing:1px;color:var(--dim);}
-
-/* Historique */
-#hist{
-  flex:1;overflow-y:auto;
-  padding:4px 6px;
-  display:flex;flex-direction:column;gap:3px;
-}
-#hist::-webkit-scrollbar{width:3px;}
-#hist::-webkit-scrollbar-thumb{background:var(--border);border-radius:2px;}
-
-.hi{
-  display:flex;align-items:center;
-  justify-content:space-between;
-  background:var(--bg);border:1px solid var(--border);
-  border-radius:2px;padding:4px 7px;
-  flex-shrink:0;
-}
-.hi.D{border-color:rgba(255,34,68,.35);background:rgba(255,34,68,.07);}
-.hp{font-size:11px;letter-spacing:2px;}
-.hi:not(.D) .hp{color:var(--green);}
-.hi.D .hp{color:var(--red);}
-.ht{font-size:7px;color:var(--dim);}
-
-/* Boutons bas panneau */
-#pbtns{
-  padding:6px;
-  display:flex;flex-direction:column;gap:4px;
-  border-top:1px solid var(--border);
-}
-.pbtn{
-  padding:7px;background:var(--bg);
-  border:1px solid var(--border);border-radius:2px;
-  color:var(--text);font-family:var(--mono);
-  font-size:8px;letter-spacing:2px;text-transform:uppercase;
-  cursor:pointer;text-align:center;transition:border-color .15s;
-}
-.pbtn:active{border-color:var(--green);}
-.pbtn.R{border-color:rgba(255,34,68,.25);color:var(--red);}
-.pbtn.R:active{background:rgba(255,34,68,.1);}
-
-/* ═══════════════════════════════════════════════
-   ALERTE LISTE NOIRE
-═══════════════════════════════════════════════ */
-#alert{
-  position:fixed;inset:0;z-index:500;
-  display:none;flex-direction:column;
-  align-items:center;justify-content:center;
-  background:rgba(4,0,8,.9);
-  gap:14px;
-}
-#alert.on{display:flex;}
-
-.a-ring{
-  width:90px;height:90px;border-radius:50%;
-  border:3px solid var(--red);
-  display:flex;align-items:center;justify-content:center;
-  box-shadow:0 0 50px var(--redglow),inset 0 0 25px rgba(255,34,68,.08);
-  animation:aring .7s ease-in-out infinite;
-}
-@keyframes aring{0%,100%{transform:scale(1)}50%{transform:scale(1.08)}}
-.a-ico{font-size:40px;}
-.a-title{
-  font-family:var(--title);font-size:26px;
-  letter-spacing:5px;color:var(--red);
-}
-#a-plate{
-  font-family:var(--title);font-size:24px;
-  color:#fff;background:var(--red);
-  padding:5px 20px;border-radius:2px;letter-spacing:4px;
-}
-.a-msg{
-  font-family:var(--mono);font-size:11px;
-  letter-spacing:3px;color:var(--yel);text-align:center;
-}
-#btn-ok{
-  padding:10px 30px;background:transparent;
-  border:2px solid var(--red);color:var(--red);
-  font-family:var(--title);font-size:12px;
-  letter-spacing:3px;cursor:pointer;border-radius:2px;
-}
-
-/* ═══════════════════════════════════════════════
-   MODAL LISTE NOIRE
-═══════════════════════════════════════════════ */
-#modal{
-  position:fixed;inset:0;z-index:400;
-  display:none;flex-direction:column;background:var(--bg);
-}
-#modal.on{display:flex;}
-.mh{
-  display:flex;align-items:center;justify-content:space-between;
-  padding:10px 14px;border-bottom:1px solid var(--border);
-  background:var(--panel);
-}
-.mt{
-  font-family:var(--title);font-size:14px;
-  letter-spacing:3px;color:var(--red);
-}
-.mx{
-  width:32px;height:32px;background:none;
-  border:1px solid var(--border);color:var(--text);
-  font-size:14px;cursor:pointer;border-radius:2px;
-}
-.mb{flex:1;overflow-y:auto;padding:12px 14px;}
-
-.inrow{display:flex;gap:8px;margin-bottom:12px;}
-#plinp{
-  flex:1;background:var(--panel);border:1px solid var(--border);
-  border-radius:2px;padding:9px 11px;
-  font-family:var(--mono);font-size:13px;
-  letter-spacing:3px;color:#fff;outline:none;
-  text-transform:uppercase;
-}
-#plinp:focus{border-color:var(--red);}
-#btnadd{
-  padding:9px 14px;background:var(--red);border:none;
-  border-radius:2px;color:#fff;
-  font-family:var(--title);font-size:11px;
-  letter-spacing:2px;cursor:pointer;
-}
-
-.bll{display:flex;flex-direction:column;gap:5px;}
-.bli{
-  display:flex;align-items:center;justify-content:space-between;
-  background:var(--panel);border:1px solid var(--border);
-  border-radius:2px;padding:9px 12px;
-}
-.blp{font-size:15px;letter-spacing:3px;color:var(--red);}
-.bld{font-size:7px;color:var(--dim);margin-top:1px;}
-.bldel{
-  width:28px;height:28px;background:none;
-  border:1px solid var(--border);color:var(--dim);
-  font-size:13px;cursor:pointer;border-radius:2px;
-}
-
-/* Toast */
-#toast{
-  position:fixed;bottom:10px;left:50%;
-  transform:translateX(-50%) translateY(12px);
-  background:rgba(0,229,160,.1);border:1px solid var(--green);
-  border-radius:2px;padding:5px 16px;
-  font-size:12px;letter-spacing:3px;color:var(--green);
-  white-space:nowrap;opacity:0;
-  transition:opacity .25s,transform .25s;
-  pointer-events:none;z-index:300;
-}
-#toast.on{opacity:1;transform:translateX(-50%) translateY(0);}
-
-/* Chargement */
-#loader{
-  position:fixed;inset:0;z-index:200;
-  display:none;flex-direction:column;
-  align-items:center;justify-content:center;
-  background:rgba(6,6,9,.95);gap:16px;
-}
-#loader.on{display:flex;}
-.spin{
-  width:40px;height:40px;
-  border:2px solid var(--border);
-  border-top-color:var(--green);
-  border-radius:50%;animation:sp 1s linear infinite;
-}
-@keyframes sp{to{transform:rotate(360deg)}}
-#lpct{
-  font-family:var(--title);font-size:28px;color:var(--green);
-}
-#lmsg{font-size:9px;letter-spacing:3px;color:var(--dim);}
+.ld-bar{width:200px;height:3px;background:var(--border);border-radius:2px;overflow:hidden;}
+.ld-fill{height:100%;background:var(--yellow);width:0%;transition:width .3s;border-radius:2px;}
+#ld-msg{font-size:11px;color:var(--dim);letter-spacing:2px;}
 </style>
 </head>
 <body>
 
-<!-- PORTRAIT → tourner -->
+<!-- PORTRAIT WALL -->
 <div id="portrait-wall">
-  <div class="pw-phone">📱</div>
-  <p class="pw-text">Tournez votre téléphone<br/>en mode paysage</p>
+  <div class="rotate-icon">📱</div>
+  <p>TOURNEZ VOTRE<br>TÉLÉPHONE</p>
 </div>
 
-<!-- ══════════════════════ SPLASH ══════════════ -->
+<!-- SPLASH -->
 <div id="splash">
   <div class="splash-left">
-    <div class="splash-glow"></div>
-    <!-- Radar SVG animé -->
-    <svg class="radar-svg" viewBox="0 0 200 200" fill="none">
-      <circle cx="100" cy="100" r="90" stroke="#FF2244" stroke-width=".8" stroke-dasharray="5 4" opacity=".2"/>
-      <circle cx="100" cy="100" r="65" stroke="#FF2244" stroke-width=".8" stroke-dasharray="4 4" opacity=".35"/>
-      <circle cx="100" cy="100" r="40" stroke="#FF2244" stroke-width="1" stroke-dasharray="3 3" opacity=".55"/>
-      <circle cx="100" cy="100" r="15" stroke="#FF2244" stroke-width="1.5" opacity=".8"/>
-      <!-- Lignes croisées -->
-      <line x1="100" y1="10"  x2="100" y2="190" stroke="#FF2244" stroke-width=".5" stroke-dasharray="2 5" opacity=".2"/>
-      <line x1="10"  y1="100" x2="190" y2="100" stroke="#FF2244" stroke-width=".5" stroke-dasharray="2 5" opacity=".2"/>
-      <!-- Bras radar -->
-      <line x1="100" y1="100" x2="178" y2="32" stroke="#FF2244" stroke-width="2" opacity=".9"/>
-      <!-- Sweep arc (partial) -->
-      <path d="M100,100 L178,32 A90,90 0 0,1 190,100" stroke="none"
-            fill="url(#sweep)" opacity=".5"/>
-      <defs>
-        <radialGradient id="sweep" cx="0%" cy="50%" r="100%">
-          <stop offset="0%" stop-color="#FF2244" stop-opacity=".6"/>
-          <stop offset="100%" stop-color="#FF2244" stop-opacity="0"/>
-        </radialGradient>
-      </defs>
-      <!-- Cible -->
-      <circle cx="162" cy="52" r="6" stroke="#FF2244" stroke-width="2" opacity=".9"/>
-      <circle cx="162" cy="52" r="2" fill="#FF2244" opacity=".9"/>
-      <!-- Point centre -->
-      <circle cx="100" cy="100" r="4" fill="#FF2244"/>
+    <svg id="radar-svg" viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg">
+      <circle cx="100" cy="100" r="95" fill="none" stroke="#2a2a3a" stroke-width="1"/>
+      <circle cx="100" cy="100" r="70" fill="none" stroke="#2a2a3a" stroke-width="1"/>
+      <circle cx="100" cy="100" r="45" fill="none" stroke="#2a2a3a" stroke-width="1"/>
+      <circle cx="100" cy="100" r="20" fill="none" stroke="#2a2a3a" stroke-width="1"/>
+      <line x1="5" y1="100" x2="195" y2="100" stroke="#1e1e2e" stroke-width="1"/>
+      <line x1="100" y1="5" x2="100" y2="195" stroke="#1e1e2e" stroke-width="1"/>
+      <g class="radar-sweep">
+        <defs>
+          <radialGradient id="sweepGrad" cx="100%" cy="50%" r="100%">
+            <stop offset="0%" stop-color="#FFE033" stop-opacity="0.6"/>
+            <stop offset="100%" stop-color="#FFE033" stop-opacity="0"/>
+          </radialGradient>
+        </defs>
+        <path d="M100,100 L195,100 A95,95,0,0,0,100,5 Z" fill="url(#sweepGrad)" opacity="0.5"/>
+        <line x1="100" y1="100" x2="195" y2="100" stroke="#FFE033" stroke-width="1.5" opacity="0.9"/>
+      </g>
+      <circle class="radar-blip" cx="148" cy="72" r="3" fill="#FFE033" opacity="0"/>
+      <circle class="radar-blip" cx="60" cy="130" r="2.5" fill="#33FF88" opacity="0" style="animation-delay:.8s"/>
+      <circle class="radar-blip" cx="155" cy="140" r="2" fill="#FFE033" opacity="0" style="animation-delay:1.4s"/>
+      <circle cx="100" cy="100" r="4" fill="#FFE033"/>
+      <circle cx="100" cy="100" r="8" fill="none" stroke="#FFE033" stroke-width="1" opacity="0.5"/>
     </svg>
   </div>
-
   <div class="splash-right">
     <div>
-      <div class="splash-logo">RADAR</div>
-      <div class="splash-sub">Détection ANPR · 100 % Local</div>
+      <div class="app-title">RADAR</div>
+      <div class="app-sub">ANPR · Détection Automatique</div>
     </div>
-
-    <div class="splash-features">
-      <div class="sf">Zéro serveur · zéro clé API</div>
-      <div class="sf">IA locale sur votre téléphone</div>
-      <div class="sf">Plaques françaises SIV uniquement</div>
-      <div class="sf">Rectangle jaune temps réel</div>
+    <div class="stat-row">
+      <div class="stat-box"><div class="val" id="s-total">0</div><div class="lbl">Scannées</div></div>
+      <div class="stat-box"><div class="val" id="s-bl">0</div><div class="lbl">Liste noire</div></div>
+      <div class="stat-box"><div class="val" id="s-alert">0</div><div class="lbl">Alertes</div></div>
     </div>
-
-    <div class="bl-pill">
-      <div class="bl-dot"></div>
-      <span class="bl-text">Liste noire : <strong id="blcnt">0</strong> plaque(s)</span>
-    </div>
-
-    <button id="btn-start">▶ DÉMARRER LE SCAN</button>
-
-    <div class="splash-actions">
-      <button class="sa-btn" onclick="openModal()">🚫 Liste noire</button>
-      <button class="sa-btn" onclick="doExport()">💾 Export JSON</button>
+    <button id="btn-start">▶ DÉMARRER</button>
+    <button class="panel-btn btn-dim" id="btn-bl-splash">⚠ GÉRER LISTE NOIRE</button>
+    <div class="hint">
+      • ML 100% local · aucun serveur<br>
+      • Caméra arrière · mode paysage<br>
+      • Plaques SIV françaises uniquement
     </div>
   </div>
 </div>
 
-<!-- ══════════════════════ SCANNER ══════════════ -->
+<!-- LOADING -->
+<div id="loading">
+  <div style="font-family:'Russo One',sans-serif;color:var(--yellow);letter-spacing:4px;font-size:18px;">INITIALISATION</div>
+  <div class="ld-bar"><div class="ld-fill" id="ld-fill"></div></div>
+  <div id="ld-msg">Chargement TensorFlow.js...</div>
+</div>
+
+<!-- SCANNER -->
 <div id="scanner">
-  <div id="cam">
+  <div id="cam-wrap">
     <video id="video" autoplay playsinline muted></video>
-    <canvas id="cv"></canvas>
-    <div class="corner c-tl"></div><div class="corner c-tr"></div>
-    <div class="corner c-bl"></div><div class="corner c-br"></div>
-    <div class="scanline"></div>
-    <div id="hud">INIT…</div>
-    <div id="fps">— FPS</div>
+    <canvas id="overlay"></canvas>
+    <div class="hud-corner hud-tl"></div>
+    <div class="hud-corner hud-tr"></div>
+    <div class="hud-corner hud-bl"></div>
+    <div class="hud-corner hud-br"></div>
+    <div id="scanline"></div>
+    <div id="status-badge">SCANNING</div>
   </div>
-
-  <div id="panel">
-    <div class="prow">
-      <div class="plbl">Dernière plaque</div>
-      <div id="lp">—</div>
-      <div id="cbar-wrap"><div id="cbar"></div></div>
-    </div>
-    <div class="prow">
-      <div class="stats">
-        <div class="stat">
-          <div class="stat-n" id="ss">0</div>
-          <div class="stat-l">Scans</div>
-        </div>
-        <div class="stat">
-          <div class="stat-n" id="sf">0</div>
-          <div class="stat-l">Plaques</div>
-        </div>
-        <div class="stat">
-          <div class="stat-n" id="sa" style="color:var(--red)">0</div>
-          <div class="stat-l">Alertes</div>
-        </div>
-      </div>
-    </div>
-    <div class="plbl" style="padding:5px 10px 2px">Historique</div>
-    <div id="hist"></div>
-    <div id="pbtns">
-      <button class="pbtn" onclick="openModal()">🚫 Liste noire (<span id="blcnt2">0</span>)</button>
-      <button class="pbtn R" onclick="stopScan()">■ Arrêter</button>
-    </div>
+  <div id="side-panel">
+    <div class="panel-title">RADAR ANPR</div>
+    <div class="mini-stat"><span class="k">DÉTECTÉES</span><span class="v" id="p-total">0</span></div>
+    <div class="mini-stat"><span class="k">FPS</span><span class="v" id="p-fps">0</span></div>
+    <div class="mini-stat"><span class="k">CONF MOY</span><span class="v" id="p-conf">—</span></div>
+    <div class="mini-stat"><span class="k">ALERTES</span><span class="v" id="p-alerts" style="color:var(--red)">0</span></div>
+    <div style="font-size:9px;color:var(--dim);letter-spacing:1px;">DERNIÈRE PLAQUE</div>
+    <div id="last-plate">—</div>
+    <div style="font-size:9px;color:var(--dim);letter-spacing:1px;">HISTORIQUE</div>
+    <div id="history-list"></div>
+    <button class="panel-btn btn-yellow" id="btn-bl-scan">⚠ LISTE NOIRE</button>
+    <button class="panel-btn btn-dim" id="btn-stop">■ ARRÊTER</button>
   </div>
 </div>
 
-<!-- ALERTE -->
-<div id="alert">
-  <div class="a-ring"><span class="a-ico">⚠️</span></div>
-  <div class="a-title">ATTENTION</div>
-  <div id="a-plate">AB-123-CD</div>
-  <div class="a-msg">⚡ RALENTISSEZ IMMÉDIATEMENT ⚡</div>
-  <button id="btn-ok">OK · COMPRIS</button>
+<!-- ALERT OVERLAY -->
+<div id="alert-overlay">
+  <div style="font-family:'Russo One',sans-serif;font-size:14px;color:#fff;letter-spacing:4px;">⚡ ALERTE LISTE NOIRE ⚡</div>
+  <div id="alert-plate">AA-123-BB</div>
+  <div id="alert-msg">⚡ RALENTISSEZ IMMÉDIATEMENT ⚡</div>
+  <button id="btn-dismiss">FERMER</button>
 </div>
 
-<!-- MODAL LISTE NOIRE -->
-<div id="modal">
-  <div class="mh">
-    <span class="mt">🚫 Liste Noire</span>
-    <button class="mx" onclick="closeModal()">✕</button>
-  </div>
-  <div class="mb">
-    <div class="inrow">
-      <input id="plinp" type="text" placeholder="AB-123-CD"
-             maxlength="9" autocapitalize="characters" autocomplete="off"/>
-      <button id="btnadd" onclick="addBL()">+ Ajouter</button>
+<!-- BLACKLIST MODAL -->
+<div id="bl-modal">
+  <div id="bl-inner">
+    <h3>⚠ LISTE NOIRE</h3>
+    <input id="bl-input" type="text" placeholder="AA-123-BB" maxlength="9"/>
+    <div class="row-btns">
+      <button class="panel-btn btn-red" id="bl-add-btn" style="flex:1">+ AJOUTER</button>
+      <button class="panel-btn btn-dim" id="bl-close-btn" style="flex:1">FERMER</button>
     </div>
-    <div class="bll" id="bllist"></div>
+    <div id="bl-list"></div>
   </div>
 </div>
 
-<!-- TOAST -->
-<div id="toast"></div>
-
-<!-- LOADER -->
-<div id="loader">
-  <div class="spin"></div>
-  <div id="lpct">0%</div>
-  <div id="lmsg">Chargement…</div>
-</div>
-
-<!-- ══════════════════════════════════════════════════════════
-     WEB WORKER — injecté en blob URL
-     Contient TOUT le ML : TF.js YOLO + Tesseract OCR
-     → tourne dans un thread séparé, zéro freeze UI
-══════════════════════════════════════════════════════════ -->
+<!-- WORKER CODE (injected via blob URL) -->
 <script id="W" type="x-worker">
-/* ─────────────────────────────────────────────────────────
-   WORKER : DÉTECTION YOLO (TF.js WebGL) + OCR Tesseract
-───────────────────────────────────────────────────────── */
-importScripts(
-  'https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@4.18.0/dist/tf.min.js',
-  'https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js'
-);
+// ===== WEB WORKER — ML Thread =====
+let tfLoaded = false;
+let tess = null;
+let model = null;
+let busy = false;
 
-const MODEL_URL = 'https://tfhub.dev/tensorflow/ssd_mobilenet_v2/2';
-const YH = 320, YW = 320;
-const CONF_THR = 0.30;
-const IOU_THR  = 0.40;
+importScripts('https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@4.18.0/dist/tf.min.js');
+importScripts('https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js');
 
-/* Tesseract params spécialisés plaques */
-const TESS_CONFIG = {
-  tessedit_char_whitelist: 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789',
-  tessedit_pageseg_mode: '8',      /* SINGLE_WORD — idéal pour 7 chars */
-  preserve_interword_spaces: '0',
-};
-
-let model       = null;
-let tessWorker  = null;
-let ocrBusy     = false;
-let modelLoaded = false;
-
-/* ── INIT ── */
 async function init(){
-  msg('progress',{p:5,  t:'Backend WebGL…'});
-  await tf.setBackend('webgl');
-  await tf.ready();
-
-  msg('progress',{p:20, t:'Chargement modèle YOLO…'});
-  /* Modèle COCO SSD — détecte "car","truck","motorbike"
-     On filtre sur ces classes pour chercher les zones véhicules,
-     puis on envoie des crops au pipeline ROI pour chercher les plaques */
-  model = await tf.loadGraphModel(
-    'https://tfhub.dev/tensorflow/ssd_mobilenet_v2/2',
-    {fromTFHub: true}
-  );
-
-  msg('progress',{p:65, t:'Chargement Tesseract OCR…'});
-  tessWorker = await Tesseract.createWorker('eng', 1, {
-    logger: m => {
-      if(m.status==='loading language traineddata')
-        msg('progress',{p:80, t:'Données OCR…'});
+  try {
+    postMessage({type:'progress', val:30, msg:'Backend TF WebGL...'});
+    await tf.setBackend('webgl');
+    await tf.ready();
+    postMessage({type:'progress', val:55, msg:'Chargement SSD MobileNet...'});
+    
+    try {
+      model = await tf.loadGraphModel(
+        'https://tfhub.dev/tensorflow/tfjs-model/ssd_mobilenet_v2/1/default/1',
+        {fromTFHub:true}
+      );
+    } catch(e) {
+      // fallback COCO SSD via CDN
+      importScripts('https://cdn.jsdelivr.net/npm/@tensorflow-models/coco-ssd@2.2.3/dist/coco-ssd.min.js');
+      model = await cocoSsd.load();
+      model._isCoco = true;
     }
-  });
-  await tessWorker.setParameters(TESS_CONFIG);
-
-  modelLoaded = true;
-  msg('progress',{p:100, t:'Prêt !'});
-  msg('ready', {});
-}
-
-/* ── INFÉRENCE YOLO SSD ── */
-async function detect(bitmap){
-  const t = tf.tidy(()=>{
-    let img = tf.browser.fromPixels(bitmap);
-    img = tf.image.resizeBilinear(img,[YH,YW]);
-    img = img.expandDims(0);
-    return img;
-  });
-  const res = await model.executeAsync(t);
-  tf.dispose(t);
-
-  /* SSD MobileNet v2 sorties : [boxes, scores, classes, num] */
-  const [boxesT, scoresT, classesT] = res;
-  const boxes   = await boxesT.array();
-  const scores  = await scoresT.array();
-  const classes = await classesT.array();
-  res.forEach(r=>r.dispose());
-
-  /* Filtrer véhicules (classes COCO : 3=car,6=bus,8=truck,4=motorcycle)
-     et scores > seuil */
-  const carClasses = new Set([3,4,6,8]);
-  const W = bitmap.width, H = bitmap.height;
-  const dets = [];
-  for(let i=0;i<scores[0].length;i++){
-    if(scores[0][i]<CONF_THR) continue;
-    if(!carClasses.has(Math.round(classes[0][i]))) continue;
-    const [y1,x1,y2,x2] = boxes[0][i];
-    dets.push({
-      x: x1*W, y: y1*H,
-      w: (x2-x1)*W, h: (y2-y1)*H,
-      conf: scores[0][i],
+    
+    postMessage({type:'progress', val:80, msg:'Init Tesseract OCR...'});
+    tess = await Tesseract.createWorker('eng', 1, {
+      workerPath: 'https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/worker.min.js',
+      corePath: 'https://cdn.jsdelivr.net/npm/tesseract.js-core@5/tesseract-core.wasm.js',
+      logger: () => {}
     });
+    await tess.setParameters({
+      tessedit_pageseg_mode: '8',
+      tessedit_char_whitelist: 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789',
+    });
+    
+    tfLoaded = true;
+    postMessage({type:'progress', val:100, msg:'Prêt !'});
+    postMessage({type:'ready'});
+  } catch(e) {
+    postMessage({type:'error', msg: e.message});
   }
-  return nms(dets);
 }
 
-/* NMS */
-function nms(dets){
-  dets.sort((a,b)=>b.conf-a.conf);
-  const keep=[], used=new Uint8Array(dets.length);
-  for(let i=0;i<dets.length;i++){
-    if(used[i]) continue;
-    keep.push(dets[i]);
-    for(let j=i+1;j<dets.length;j++)
-      if(!used[j] && iou(dets[i],dets[j])>IOU_THR) used[j]=1;
-    if(keep.length>=8) break;
-  }
-  return keep;
-}
-function iou(a,b){
-  const x1=Math.max(a.x,b.x),y1=Math.max(a.y,b.y);
-  const x2=Math.min(a.x+a.w,b.x+b.w),y2=Math.min(a.y+a.h,b.y+b.h);
-  const I=Math.max(0,x2-x1)*Math.max(0,y2-y1);
-  return I/(a.w*a.h+b.w*b.h-I+1e-6);
-}
+// ===== DETECTION =====
+const VEH_CLASSES = new Set([3,4,6,8]); // car,motorcycle,bus,truck (COCO 1-indexed)
+const VEH_NAMES = new Set(['car','truck','bus','motorcycle']);
 
-/* ── HEURISTIQUE PLAQUE dans une bbox véhicule ──
-   La plaque est dans le tiers inférieur du véhicule,
-   centrée horizontalement, ratio W/H ≈ 4.5
-*/
-function plateROI(veh, frameW, frameH){
-  const px  = veh.x + veh.w*0.15;
-  const py  = veh.y + veh.h*0.62;
-  const pw  = veh.w*0.70;
-  const ph  = pw / 4.5;
-  return {
-    x: Math.max(0, px),
-    y: Math.max(0, py),
-    w: Math.min(pw, frameW-px),
-    h: Math.min(ph, frameH-py),
-  };
-}
-
-/* ── PRÉTRAITEMENT CROP POUR OCR ──
-   1. Upscale ×2 minimum → OffscreenCanvas 280px+
-   2. Grayscale
-   3. Otsu binarisation
-   4. Retour Blob PNG
-*/
-async function prepCrop(bitmap, box){
-  const srcW = Math.floor(box.w), srcH = Math.floor(box.h);
-  if(srcW<20||srcH<5) return null;
-
-  const TW = Math.max(280, srcW*2);
-  const TH = Math.round(srcH*(TW/srcW));
-  const oc = new OffscreenCanvas(TW, TH);
-  const ctx= oc.getContext('2d');
-  ctx.drawImage(bitmap, box.x, box.y, srcW, srcH, 0, 0, TW, TH);
-
-  const id   = ctx.getImageData(0,0,TW,TH);
-  const d    = id.data;
-  const N    = TW*TH;
-  const gray = new Uint8Array(N);
-  for(let i=0;i<N;i++) gray[i]=(d[i*4]*77+d[i*4+1]*151+d[i*4+2]*28)>>8;
-
-  /* Otsu */
-  const h=new Int32Array(256);
-  for(let i=0;i<N;i++) h[gray[i]]++;
-  let sum=0; for(let i=0;i<256;i++) sum+=i*h[i];
-  let sb=0,wb=0,mv=0,th=128;
-  for(let t=0;t<256;t++){
-    wb+=h[t]; if(!wb) continue;
-    const wf=N-wb; if(!wf) break;
-    sb+=t*h[t];
-    const mb=sb/wb, mf=(sum-sb)/wf;
-    const v=wb*wf*(mb-mf)*(mb-mf);
-    if(v>mv){mv=v;th=t;}
-  }
-  for(let i=0;i<N;i++){
-    const v=gray[i]<th?0:255;
-    d[i*4]=d[i*4+1]=d[i*4+2]=v; d[i*4+3]=255;
-  }
-  ctx.putImageData(id,0,0);
-  return oc.convertToBlob({type:'image/png'});
-}
-
-/* ── OCR ── */
-async function ocr(bitmap, box){
-  if(ocrBusy) return null;
-  ocrBusy=true;
-  try{
-    const blob=await prepCrop(bitmap,box);
-    if(!blob) return null;
-    const r=await tessWorker.recognize(blob);
-    return {raw: r.data.text.trim(), conf: r.data.confidence||0};
-  }finally{ocrBusy=false;}
-}
-
-/* ── HANDLER ── */
-self.onmessage=async e=>{
-  const{type,payload}=e.data;
-  if(type==='init'){ try{await init();}catch(err){msg('err',{t:err.message});} }
-  else if(type==='frame'){
-    if(!modelLoaded) return;
-    const{bitmap}=payload;
-    const W=bitmap.width, H=bitmap.height;
-    try{
-      const vehs=await detect(bitmap);
-      /* Calculer boxes de plaques depuis ROI véhicules */
-      const plates=vehs.map(v=>({...plateROI(v,W,H), veh:v}));
-      msg('boxes',{vehs, plates});
-      /* OCR sur la 1ère plaque seulement si pas occupé */
-      if(plates.length&&!ocrBusy){
-        const r=await ocr(bitmap,plates[0]);
-        if(r) msg('ocr',{ocr:r, box:plates[0]});
+async function detect(bitmap){
+  if(!tfLoaded || !model) return [];
+  try {
+    let boxes = [];
+    const w = bitmap.width, h = bitmap.height;
+    
+    if(model._isCoco){
+      // COCO SSD fallback
+      const canvas = new OffscreenCanvas(w, h);
+      canvas.getContext('2d').drawImage(bitmap, 0, 0);
+      const preds = await model.detect(canvas);
+      for(const p of preds){
+        if(VEH_NAMES.has(p.class) && p.score > 0.35){
+          boxes.push({
+            x: p.bbox[0]/w, y: p.bbox[1]/h,
+            w: p.bbox[2]/w, h: p.bbox[3]/h,
+            score: p.score
+          });
+        }
       }
-    }catch(err){msg('err',{t:err.message});}
-    finally{bitmap.close();}
+    } else {
+      // SSD MobileNet v2 TFHub
+      const tensor = tf.tidy(() => {
+        const canvas = new OffscreenCanvas(300, 300);
+        canvas.getContext('2d').drawImage(bitmap, 0, 0, 300, 300);
+        const ctx = canvas.getContext('2d');
+        const imgData = ctx.getImageData(0, 0, 300, 300);
+        return tf.browser.fromPixels({data: imgData.data, width:300, height:300}).expandDims(0);
+      });
+      const res = await model.executeAsync(tensor);
+      tensor.dispose();
+      const rawBoxes = Array.from(await res[0].data());
+      const scores   = Array.from(await res[1].data());
+      const classes  = Array.from(await res[2].data());
+      res.forEach(t => t.dispose());
+      
+      const N = scores.length;
+      for(let i = 0; i < N; i++){
+        const cls = Math.round(classes[i]);
+        if(scores[i] < 0.35 || !VEH_CLASSES.has(cls)) continue;
+        const y1 = rawBoxes[i*4], x1 = rawBoxes[i*4+1];
+        const y2 = rawBoxes[i*4+2], x2 = rawBoxes[i*4+3];
+        boxes.push({x:x1, y:y1, w:x2-x1, h:y2-y1, score:scores[i]});
+      }
+    }
+    return nms(boxes, 0.4);
+  } catch(e){ return []; }
+}
+
+function nms(boxes, iouThr){
+  boxes.sort((a,b) => b.score - a.score);
+  const keep = [];
+  const used = new Uint8Array(boxes.length);
+  for(let i=0;i<boxes.length;i++){
+    if(used[i]) continue;
+    keep.push(boxes[i]);
+    for(let j=i+1;j<boxes.length;j++){
+      if(!used[j] && iou(boxes[i],boxes[j]) > iouThr) used[j]=1;
+    }
   }
-};
+  return keep.slice(0,8);
+}
 
-function msg(type,payload){self.postMessage({type,payload});}
-</script>
+function iou(a,b){
+  const x1=Math.max(a.x,b.x), y1=Math.max(a.y,b.y);
+  const x2=Math.min(a.x+a.w,b.x+b.w), y2=Math.min(a.y+a.h,b.y+b.h);
+  if(x2<=x1||y2<=y1) return 0;
+  const inter=(x2-x1)*(y2-y1);
+  return inter/(a.w*a.h + b.w*b.h - inter);
+}
 
-<!-- ══════════════════════════════════════════════════════════
-     SCRIPT PRINCIPAL
-══════════════════════════════════════════════════════════ -->
-<script>
-'use strict';
+// ===== PLATE ROI =====
+function plateROI(veh, fw, fh){
+  const px = veh.x*fw + veh.w*fw*0.15;
+  const py = veh.y*fh + veh.h*fh*0.62;
+  const pw = veh.w*fw*0.70;
+  const ph = pw/4.5;
+  return {x:Math.max(0,px), y:Math.max(0,py), w:pw, h:ph};
+}
 
-/* ─── ÉTAT ─────────────────────────────────────── */
-const ST={
-  running:false, stream:null, worker:null,
-  ready:false, frameReady:true,
-  stats:{s:0,f:0,a:0},
-  blacklist:[], history:[],
-  alertOn:false, alerted:new Set(),
-  boxes:{vehs:[],plates:[]},
-  knownPlates:{},          /* idx→plate pour overlay */
-  fps:{t:performance.now(),frames:0,v:0},
-};
+// ===== OCR =====
+async function ocrPlate(bitmap, roi){
+  try {
+    const minW = 280;
+    const scale = roi.w < minW ? Math.ceil(minW/roi.w) : 1;
+    const cw = roi.w * scale, ch = roi.h * scale;
+    if(cw < 20 || ch < 5) return null;
+    
+    const oc = new OffscreenCanvas(cw, ch);
+    const ctx = oc.getContext('2d');
+    ctx.imageSmoothingEnabled = true;
+    ctx.imageSmoothingQuality = 'high';
+    ctx.drawImage(bitmap, roi.x, roi.y, roi.w, roi.h, 0, 0, cw, ch);
+    
+    const id = ctx.getImageData(0, 0, cw, ch);
+    const d = id.data;
+    
+    // Grayscale
+    for(let i=0;i<d.length;i+=4){
+      const g = (d[i]*77 + d[i+1]*151 + d[i+2]*28) >> 8;
+      d[i]=d[i+1]=d[i+2]=g;
+    }
+    
+    // Otsu threshold
+    const hist = new Uint32Array(256);
+    for(let i=0;i<d.length;i+=4) hist[d[i]]++;
+    const total = cw*ch;
+    let sum=0; for(let i=0;i<256;i++) sum+=i*hist[i];
+    let sb=0,wb=0,max=0,thr=128;
+    for(let t=0;t<256;t++){
+      wb+=hist[t]; if(!wb) continue;
+      const wf=total-wb; if(!wf) break;
+      sb+=t*hist[t];
+      const mf=(sum-sb)/wf, mb=sb/wb;
+      const v=wb*wf*(mb-mf)*(mb-mf);
+      if(v>max){max=v;thr=t;}
+    }
+    for(let i=0;i<d.length;i+=4){
+      const v=d[i]>thr?255:0;
+      d[i]=d[i+1]=d[i+2]=v;
+    }
+    ctx.putImageData(id, 0, 0);
+    
+    const blob = await oc.convertToBlob({type:'image/png'});
+    const {data:{text,confidence}} = await tess.recognize(blob);
+    return {raw: text.trim(), conf: confidence};
+  } catch(e){ return null; }
+}
 
-/* ─── SIV ───────────────────────────────────────── */
-const SRE=/^[A-Z]{2}[0-9]{3}[A-Z]{2}$/;
-const C2I={O:'0',I:'1',J:'3',A:'4',G:'6',S:'5'};
-const I2C={'0':'O','1':'I','3':'J','4':'A','6':'G','5':'S'};
-function corr(t7){const m=[I2C,I2C,C2I,C2I,C2I,I2C,I2C];return t7.split('').map((c,i)=>m[i][c]||c).join('');}
-function fmt(t7){const c=corr(t7);return`${c.slice(0,2)}-${c.slice(2,5)}-${c.slice(5)}`;}
-function okSIV(t7){return SRE.test(corr(t7));}
+// ===== VALIDATION SIV =====
+const SRE = /^[A-Z]{2}[0-9]{3}[A-Z]{2}$/;
+const C2I = {O:'0',I:'1',J:'3',A:'4',G:'6',S:'5'};
+const I2C = {'0':'O','1':'I','3':'J','4':'A','6':'G','5':'S'};
+
+function okSIV(s){
+  let r='';
+  for(let i=0;i<7;i++){
+    const c=s[i];
+    if(i<2||i>4){ // letter positions
+      if(/[A-Z]/.test(c)) r+=c;
+      else if(I2C[c]) r+=I2C[c];
+      else return false;
+    } else { // digit positions
+      if(/[0-9]/.test(c)) r+=c;
+      else if(C2I[c]) r+=C2I[c];
+      else return false;
+    }
+  }
+  return SRE.test(r) ? r : false;
+}
+
+function fmt(s){ return s[0]+s[1]+'-'+s[2]+s[3]+s[4]+'-'+s[5]+s[6]; }
+
 function valSIV(raw){
   const c=raw.toUpperCase().replace(/[^A-Z0-9]/g,'');
-  if(c.length===7&&okSIV(c)) return fmt(c);
-  for(let s=0;s<=c.length-7;s++){const b=c.slice(s,s+7);if(okSIV(b))return fmt(b);}
-  if(c.length===6){for(const p of[2,3,4])for(const d of'0123456789'){const x=c.slice(0,p)+d+c.slice(p);if(okSIV(x))return fmt(x);}}
-  if(c.length===8){for(let p=0;p<8;p++){const x=c.slice(0,p)+c.slice(p+1);if(okSIV(x))return fmt(x);}}
+  let r;
+  // Pass 1
+  if(c.length===7 && (r=okSIV(c))) return fmt(r);
+  // Pass 2 sliding
+  for(let s=0;s<=c.length-7;s++){ if((r=okSIV(c.slice(s,s+7)))) return fmt(r); }
+  // Pass 3 : 6 chars → insert missing digit
+  if(c.length===6){
+    for(const p of[2,3,4]){
+      for(const d of '0123456789'){
+        const t=c.slice(0,p)+d+c.slice(p);
+        if((r=okSIV(t))) return fmt(r);
+      }
+    }
+  }
+  // Pass 4 : 8 chars → remove parasite
+  if(c.length===8){
+    for(let p=0;p<8;p++){
+      const t=c.slice(0,p)+c.slice(p+1);
+      if((r=okSIV(t))) return fmt(r);
+    }
+  }
   return null;
 }
 
-/* ─── PERSISTANCE ───────────────────────────────── */
-function save(){try{localStorage.setItem('r_bl',JSON.stringify(ST.blacklist));localStorage.setItem('r_hi',JSON.stringify(ST.history.slice(-300)));}catch(e){}}
-function load(){try{const b=localStorage.getItem('r_bl'),h=localStorage.getItem('r_hi');if(b)ST.blacklist=JSON.parse(b);if(h)ST.history=JSON.parse(h);}catch(e){}}
-function doExport(){
-  const d={exported:new Date().toISOString(),blacklist:ST.blacklist,history:ST.history};
-  const b=new Blob([JSON.stringify(d,null,2)],{type:'application/json'});
-  const u=URL.createObjectURL(b);const a=document.createElement('a');
-  a.href=u;a.download=`radar_${Date.now()}.json`;a.click();URL.revokeObjectURL(u);
-}
+// ===== MAIN MESSAGE HANDLER =====
+self.onmessage = async function(e){
+  const {type, payload} = e.data;
+  if(type==='init') { init(); return; }
+  if(type==='frame'){
+    if(busy){ payload.bitmap.close(); return; }
+    busy=true;
+    try {
+      const {bitmap} = payload;
+      const fw=bitmap.width, fh=bitmap.height;
+      const vehs = await detect(bitmap);
+      const boxes = [];
+      const ocrs = [];
+      for(const v of vehs){
+        const roi = plateROI(v, fw, fh);
+        const res = await ocrPlate(bitmap, roi);
+        const plate = res ? valSIV(res.raw) : null;
+        boxes.push({
+          vx: v.x*fw, vy: v.y*fh, vw: v.w*fw, vh: v.h*fh,
+          px: roi.x, py: roi.y, pw: roi.w, ph: roi.h,
+          plate, conf: res ? res.conf : 0
+        });
+        if(plate) ocrs.push({plate, conf: res.conf});
+      }
+      bitmap.close();
+      postMessage({type:'boxes', boxes});
+      for(const o of ocrs) postMessage({type:'ocr', plate:o.plate, conf:o.conf});
+    } catch(e2){}
+    busy=false;
+  }
+};
+</script>
 
-/* ─── WORKER ────────────────────────────────────── */
+<script>
+// ===== MAIN THREAD =====
+const $ = id => document.getElementById(id);
+
+// State
+const ST = {
+  worker: null,
+  stream: null,
+  frameReady: true,
+  boxes: [],
+  history: [],
+  blacklist: [],
+  stats: {total:0, alerts:0, confs:[]},
+  alertCooldown: new Set(),
+  fps: 0, lastFpsTime: 0, fpsCount: 0
+};
+
+// Load from localStorage
+try { ST.blacklist = JSON.parse(localStorage.getItem('r_bl')||'[]'); } catch(e){}
+try { ST.history   = JSON.parse(localStorage.getItem('r_hi')||'[]'); } catch(e){}
+
+// Update splash stats
+function updateSplashStats(){
+  $('s-total').textContent = ST.history.length;
+  $('s-bl').textContent    = ST.blacklist.length;
+  $('s-alert').textContent = ST.stats.alerts;
+}
+updateSplashStats();
+
+// ===== WORKER SPAWN =====
 function spawnWorker(){
-  const src=document.getElementById('W').textContent;
-  const blob=new Blob([src],{type:'application/javascript'});
+  const src  = $('W').textContent;
+  const blob = new Blob([src], {type:'application/javascript'});
   return new Worker(URL.createObjectURL(blob));
 }
 
-/* ─── OVERLAY CANVAS ────────────────────────────── */
-const cv    = document.getElementById('cv');
-const ctx   = cv.getContext('2d');
-const video = document.getElementById('video');
+// ===== AUDIO =====
+let audioCtx = null;
+function getAudio(){ if(!audioCtx) audioCtx = new (window.AudioContext||window.webkitAudioContext)(); return audioCtx; }
 
-function resizeCv(){
-  const c=document.getElementById('cam');
-  cv.width=c.clientWidth; cv.height=c.clientHeight;
+function beep(freq, dur, t, vol=0.3){
+  const ctx = getAudio();
+  const osc = ctx.createOscillator();
+  const gain = ctx.createGain();
+  osc.type = 'square';
+  osc.frequency.value = freq;
+  gain.gain.value = vol;
+  osc.connect(gain); gain.connect(ctx.destination);
+  osc.start(ctx.currentTime + t);
+  osc.stop(ctx.currentTime + t + dur);
 }
 
-function drawBoxes(){
-  ctx.clearRect(0,0,cv.width,cv.height);
-  const vw=video.videoWidth||1, vh=video.videoHeight||1;
-  const sx=cv.width/vw, sy=cv.height/vh;
+function alertBeeps(){
+  for(let i=0;i<3;i++){
+    beep(880, 0.18, i*1.0);
+    beep(1100, 0.18, i*1.0+0.2);
+    beep(880, 0.18, i*1.0+0.4);
+  }
+  if(navigator.vibrate) navigator.vibrate([300,100,300,100,500]);
+}
 
-  /* Dessiner les boxes plaques en JAUNE */
-  ST.boxes.plates.forEach((b,i)=>{
-    const x=b.x*sx,y=b.y*sy,w=b.w*sx,h=b.h*sy;
-    const plate=ST.knownPlates[i]||null;
-    const isDanger=plate&&ST.blacklist.some(bl=>bl.plate===plate);
-
-    /* Halo */
-    ctx.strokeStyle='rgba(255,224,51,.18)';
-    ctx.lineWidth=8;
-    ctx.strokeRect(x-3,y-3,w+6,h+6);
-
-    /* Rectangle principal JAUNE */
-    ctx.strokeStyle='#FFE033';
-    ctx.lineWidth=2;
-    ctx.strokeRect(x,y,w,h);
-
-    /* Coins épais HUD */
-    const cs=10;
-    ctx.strokeStyle='#FFE033';
-    ctx.lineWidth=3.5;
-    [[x,y,cs,0,0,cs],[x+w,y,-cs,0,0,cs],[x,y+h,cs,0,0,-cs],[x+w,y+h,-cs,0,0,-cs]]
-    .forEach(([ox,oy,d1,d2,d3,d4])=>{
-      ctx.beginPath();ctx.moveTo(ox,oy);ctx.lineTo(ox+d1,oy+d2);ctx.stroke();
-      ctx.beginPath();ctx.moveTo(ox,oy);ctx.lineTo(ox+d3,oy+d4);ctx.stroke();
+// ===== START FLOW =====
+$('btn-start').onclick = async () => {
+  $('splash').style.display = 'none';
+  $('loading').style.display = 'flex';
+  setProgress(10, 'Accès caméra...');
+  
+  try {
+    ST.stream = await navigator.mediaDevices.getUserMedia({
+      video:{facingMode:'environment', width:{ideal:1280}, height:{ideal:720}},
+      audio:false
     });
-
-    /* Texte plaque au-dessus */
-    if(plate){
-      ctx.fillStyle='rgba(0,0,0,.78)';
-      ctx.fillRect(x,y-20,w,20);
-      ctx.fillStyle=isDanger?'#FF2244':'#FFE033';
-      ctx.font="bold 13px 'Space Mono',monospace";
-      ctx.textAlign='center';
-      ctx.fillText(plate,x+w/2,y-5);
-    }
-  });
-
-  /* Contour véhicule en vert discret */
-  ST.boxes.vehs.forEach(v=>{
-    ctx.strokeStyle='rgba(0,229,160,.25)';
-    ctx.lineWidth=1;
-    ctx.strokeRect(v.x*sx,v.y*sy,v.w*sx,v.h*sy);
-  });
-}
-
-/* ─── BOUCLE RAF ────────────────────────────────── */
-let rafId=null;
-const capCv=document.createElement('canvas');
-const capCtx=capCv.getContext('2d',{willReadFrequently:true});
-
-function loop(now){
-  if(!ST.running){rafId=null;return;}
-  rafId=requestAnimationFrame(loop);
-
-  /* FPS */
-  ST.fps.frames++;
-  if(now-ST.fps.t>1000){
-    ST.fps.v=ST.fps.frames;ST.fps.frames=0;ST.fps.t=now;
-    document.getElementById('fps').textContent=`${ST.fps.v} FPS`;
+    $('video').srcObject = ST.stream;
+    await $('video').play();
+    setProgress(25, 'Caméra OK — Init ML...');
+  } catch(e){
+    alert('Erreur caméra : '+e.message); 
+    $('loading').style.display='none';
+    $('splash').style.display='flex';
+    return;
   }
-
-  drawBoxes();
-
-  if(!ST.frameReady||!ST.ready||!video.videoWidth) return;
-  const vw=video.videoWidth,vh=video.videoHeight;
-  /* Réduire à 640px max pour perf */
-  const sc=Math.min(1,640/vw);
-  const sw=Math.round(vw*sc),sh=Math.round(vh*sc);
-  capCv.width=sw;capCv.height=sh;
-  capCtx.drawImage(video,0,0,sw,sh);
-
-  /* Transférer comme ImageBitmap (zéro copy) */
-  createImageBitmap(capCv).then(bm=>{
-    ST.frameReady=false;
-    ST.stats.s++;
-    document.getElementById('ss').textContent=ST.stats.s;
-    ST.worker.postMessage({type:'frame',payload:{bitmap:bm}},[bm]);
-  });
-}
-
-/* ─── MESSAGES WORKER ───────────────────────────── */
-function onMsg(e){
-  const{type,payload}=e.data;
-  if(type==='progress'){
-    document.getElementById('lpct').textContent=payload.p+'%';
-    document.getElementById('lmsg').textContent=payload.t;
-  }
-  else if(type==='ready'){
-    ST.ready=true;
-    setLoader(false);
-    setHUD('SCAN ACTIF');
-    document.getElementById('scanner').style.display='flex';
-    ST.running=true;
-    requestAnimationFrame(loop);
-  }
-  else if(type==='boxes'){
-    ST.boxes=payload;
-    ST.frameReady=true;
-    setHUD(payload.vehs.length?`● ${payload.vehs.length} VÉHICULE(S) · ${payload.plates.length} ZONE(S)`:'EN ATTENTE…');
-  }
-  else if(type==='ocr'){
-    const plate=valSIV(payload.ocr.raw);
-    if(plate){
-      /* Associer à la box */
-      const idx=ST.boxes.plates.findIndex(b=>Math.abs(b.x-payload.box.x)<40&&Math.abs(b.y-payload.box.y)<40);
-      if(idx>=0) ST.knownPlates[idx]=plate;
-      onPlate(plate,payload.ocr.conf);
-    }
-    ST.frameReady=true;
-  }
-  else if(type==='err'){
-    console.error('[W]',payload.t);
-    ST.frameReady=true;
-    setHUD('ERREUR — REPRISE…');
-  }
-}
-
-/* ─── PLAQUE TROUVÉE ────────────────────────────── */
-function onPlate(plate,conf){
-  const danger=ST.blacklist.some(b=>b.plate===plate);
-  const ts=Date.now();
-  const recent=ST.history.find(h=>h.plate===plate&&ts-h.ts<5000);
-  if(recent){recent.ts=ts;return;}
-  ST.history.push({plate,ts,danger,conf});save();
-  ST.stats.f++;if(danger)ST.stats.a++;
-  document.getElementById('sf').textContent=ST.stats.f;
-  document.getElementById('sa').textContent=ST.stats.a;
-  const lp=document.getElementById('lp');
-  lp.textContent=plate;
-  lp.className=danger?'danger':'';
-  document.getElementById('cbar').style.width=Math.round(conf)+'%';
-  addHist(plate,ts,danger);
-  if(danger){triggerAlert(plate);}
-  else{beep(660,.07,110);showToast(plate);}
-  setHUD(`✓ ${plate}`);
-}
-
-/* ─── UI helpers ───────────────────────────────── */
-function setHUD(t){document.getElementById('hud').textContent=t;}
-function setLoader(on){document.getElementById('loader').classList.toggle('on',on);}
-
-function addHist(plate,ts,danger){
-  const l=document.getElementById('hist');
-  const d=document.createElement('div');
-  d.className='hi'+(danger?' D':'');
-  d.innerHTML=`<span class="hp">${plate}</span><span class="ht">${new Date(ts).toLocaleTimeString('fr-FR')}</span>`;
-  l.insertBefore(d,l.firstChild);
-  while(l.children.length>50)l.removeChild(l.lastChild);
-}
-
-let toastT=null;
-function showToast(t){
-  const el=document.getElementById('toast');
-  el.textContent=t;el.classList.add('on');
-  clearTimeout(toastT);toastT=setTimeout(()=>el.classList.remove('on'),2200);
-}
-
-/* ─── ALERTE ────────────────────────────────────── */
-function triggerAlert(plate){
-  if(ST.alertOn||ST.alerted.has(plate))return;
-  ST.alerted.add(plate);setTimeout(()=>ST.alerted.delete(plate),60000);
-  ST.alertOn=true;
-  document.getElementById('a-plate').textContent=plate;
-  document.getElementById('alert').classList.add('on');
-  if(navigator.vibrate)navigator.vibrate([300,100,300,100,500]);
-  alertBeeps();setTimeout(alertBeeps,1000);setTimeout(alertBeeps,2000);
-}
-document.getElementById('btn-ok').onclick=()=>{
-  ST.alertOn=false;document.getElementById('alert').classList.remove('on');
-};
-
-/* ─── AUDIO ─────────────────────────────────────── */
-let actx=null;
-function ac(){if(!actx)actx=new(window.AudioContext||window.webkitAudioContext)();return actx;}
-function beep(f,v,ms,off=0,w='sine'){
-  try{const c=ac(),o=c.createOscillator(),g=c.createGain();
-  o.connect(g);g.connect(c.destination);o.type=w;o.frequency.value=f;
-  g.gain.setValueAtTime(0,c.currentTime+off);
-  g.gain.linearRampToValueAtTime(v,c.currentTime+off+.01);
-  g.gain.exponentialRampToValueAtTime(.001,c.currentTime+off+ms/1000);
-  o.start(c.currentTime+off);o.stop(c.currentTime+off+ms/1000+.01);}catch(e){}
-}
-function alertBeeps(){beep(880,.28,180,0,'square');beep(1100,.28,180,.22,'square');beep(880,.28,180,.44,'square');}
-
-/* ─── LISTE NOIRE ───────────────────────────────── */
-function updBL(){const n=ST.blacklist.length;['blcnt','blcnt2'].forEach(id=>{const el=document.getElementById(id);if(el)el.textContent=n;});}
-function renderBL(){
-  const el=document.getElementById('bllist');el.innerHTML='';
-  if(!ST.blacklist.length){el.innerHTML='<div style="font-size:10px;color:var(--dim);text-align:center;padding:24px">Aucune plaque</div>';return;}
-  ST.blacklist.forEach((it,i)=>{
-    const d=document.createElement('div');d.className='bli';
-    d.innerHTML=`<div><div class="blp">${it.plate}</div><div class="bld">${new Date(it.addedAt).toLocaleDateString('fr-FR')}</div></div><button class="bldel" onclick="delBL(${i})">✕</button>`;
-    el.appendChild(d);
-  });
-}
-function addBL(){
-  const inp=document.getElementById('plinp');
-  const p=valSIV(inp.value);
-  if(!p){inp.style.borderColor='var(--red)';setTimeout(()=>inp.style.borderColor='',1500);return;}
-  if(ST.blacklist.find(b=>b.plate===p))return;
-  ST.blacklist.push({plate:p,addedAt:Date.now()});
-  save();updBL();renderBL();inp.value='';
-}
-function delBL(i){ST.blacklist.splice(i,1);save();updBL();renderBL();}
-function openModal(){renderBL();document.getElementById('modal').classList.add('on');}
-function closeModal(){document.getElementById('modal').classList.remove('on');}
-document.getElementById('plinp').addEventListener('keydown',e=>{if(e.key==='Enter')addBL();});
-
-/* ─── CAMÉRA ────────────────────────────────────── */
-async function startCam(){
-  const stream=await navigator.mediaDevices.getUserMedia({
-    video:{facingMode:{ideal:'environment'},width:{ideal:1920},height:{ideal:1080}},audio:false
-  });
-  ST.stream=stream;video.srcObject=stream;
-  await new Promise(r=>{video.onloadedmetadata=r;});
-  await video.play();
-}
-function stopCam(){if(ST.stream){ST.stream.getTracks().forEach(t=>t.stop());ST.stream=null;}}
-
-/* ─── START / STOP ─────────────────────────────── */
-document.getElementById('btn-start').onclick=async()=>{
-  try{ac().resume();}catch(e){}
-  setLoader(true);
-  document.getElementById('splash').style.display='none';
-  try{await startCam();}
-  catch(e){
-    alert('Impossible d\'accéder à la caméra.\nAutorisez l\'accès dans votre navigateur.');
-    document.getElementById('splash').style.display='flex';
-    setLoader(false);return;
-  }
-  resizeCv();
-  ST.worker=spawnWorker();
-  ST.worker.onmessage=onMsg;
-  ST.worker.onerror=err=>{console.error(err);setHUD('ERREUR WORKER');setLoader(false);};
+  
+  ST.worker = spawnWorker();
+  ST.worker.onmessage = onWorkerMsg;
   ST.worker.postMessage({type:'init'});
 };
 
-function stopScan(){
-  ST.running=false;ST.ready=false;
-  if(rafId){cancelAnimationFrame(rafId);rafId=null;}
-  stopCam();
-  if(ST.worker){ST.worker.terminate();ST.worker=null;}
-  ctx.clearRect(0,0,cv.width,cv.height);
-  ST.boxes={vehs:[],plates:[]};ST.knownPlates={};
-  document.getElementById('scanner').style.display='none';
-  document.getElementById('splash').style.display='flex';
+function setProgress(v, msg){
+  $('ld-fill').style.width = v+'%';
+  $('ld-msg').textContent = msg;
 }
 
-/* ─── RESIZE ────────────────────────────────────── */
-window.addEventListener('resize',resizeCv);
+function onWorkerMsg(e){
+  const {type} = e.data;
+  if(type==='progress') { setProgress(e.data.val, e.data.msg); return; }
+  if(type==='error')    { alert('Erreur ML : '+e.data.msg); return; }
+  if(type==='ready'){
+    $('loading').style.display='none';
+    $('scanner').style.display='flex';
+    requestAnimationFrame(loop);
+    return;
+  }
+  if(type==='boxes'){
+    ST.boxes = e.data.boxes;
+    ST.frameReady = true;
+    // FPS
+    ST.fpsCount++;
+    const now = performance.now();
+    if(now - ST.lastFpsTime > 1000){
+      ST.fps = Math.round(ST.fpsCount * 1000 / (now - ST.lastFpsTime));
+      ST.fpsCount = 0;
+      ST.lastFpsTime = now;
+      $('p-fps').textContent = ST.fps;
+    }
+  }
+  if(type==='ocr'){
+    const {plate, conf} = e.data;
+    onPlate(plate, conf);
+  }
+}
 
-/* ─── INIT ──────────────────────────────────────── */
-load();updBL();
+// ===== ON PLATE DETECTED =====
+function onPlate(plate, conf){
+  if(!plate) return;
+  
+  // Dedup (same plate within 5s)
+  const now = Date.now();
+  const last = ST._lastPlates || {};
+  if(last[plate] && now - last[plate] < 5000) return;
+  if(!ST._lastPlates) ST._lastPlates = {};
+  ST._lastPlates[plate] = now;
+  
+  // Stats
+  ST.stats.total++;
+  ST.stats.confs.push(conf);
+  if(ST.stats.confs.length > 50) ST.stats.confs.shift();
+  const avgConf = Math.round(ST.stats.confs.reduce((a,b)=>a+b,0)/ST.stats.confs.length);
+  
+  // History
+  const isDanger = ST.blacklist.some(b => b.plate === plate);
+  const entry = {plate, conf, ts: new Date().toLocaleTimeString('fr-FR',{hour:'2-digit',minute:'2-digit',second:'2-digit'}), danger:isDanger};
+  ST.history.unshift(entry);
+  if(ST.history.length > 300) ST.history.pop();
+  
+  // UI
+  $('last-plate').textContent = plate;
+  $('p-total').textContent = ST.stats.total;
+  $('p-conf').textContent = avgConf+'%';
+  renderHistory();
+  
+  // Blacklist alert
+  if(isDanger && !ST.alertCooldown.has(plate)){
+    ST.stats.alerts++;
+    $('p-alerts').textContent = ST.stats.alerts;
+    ST.alertCooldown.add(plate);
+    setTimeout(()=>ST.alertCooldown.delete(plate), 60000);
+    triggerAlert(plate);
+  }
+  
+  // Save
+  try {
+    localStorage.setItem('r_hi', JSON.stringify(ST.history.slice(0,300)));
+  } catch(e){}
+}
+
+function triggerAlert(plate){
+  $('alert-plate').textContent = plate;
+  $('alert-overlay').style.display = 'flex';
+  alertBeeps();
+}
+
+$('btn-dismiss').onclick = () => { $('alert-overlay').style.display='none'; };
+
+// ===== RENDER LOOP =====
+function loop(){
+  if($('scanner').style.display==='none') return;
+  drawBoxes();
+  if(ST.frameReady) sendFrame();
+  requestAnimationFrame(loop);
+}
+
+function sendFrame(){
+  const video = $('video');
+  if(video.readyState < 2) return;
+  try {
+    ST.frameReady = false;
+    createImageBitmap(video).then(bitmap => {
+      ST.worker.postMessage({type:'frame', payload:{bitmap}}, [bitmap]);
+    }).catch(()=>{ ST.frameReady=true; });
+  } catch(e){ ST.frameReady=true; }
+}
+
+// ===== DRAW OVERLAY =====
+function drawBoxes(){
+  const canvas = $('overlay');
+  const video  = $('video');
+  const cw = video.clientWidth, ch = video.clientHeight;
+  const vw = video.videoWidth  || cw;
+  const vh = video.videoHeight || ch;
+  if(canvas.width!==cw || canvas.height!==ch){ canvas.width=cw; canvas.height=ch; }
+  const ctx = canvas.getContext('2d');
+  ctx.clearRect(0,0,cw,ch);
+  
+  const sx = cw/vw, sy = ch/vh;
+  
+  for(const box of ST.boxes){
+    // Vehicle box (subtle)
+    const vx=box.vx*sx, vy=box.vy*sy, vw2=box.vw*sx, vh2=box.vh*sy;
+    ctx.strokeStyle='rgba(51,255,136,.25)';
+    ctx.lineWidth=1;
+    ctx.strokeRect(vx,vy,vw2,vh2);
+    
+    // Plate box (YELLOW)
+    const px=box.px*sx, py=box.py*sy, pw=box.pw*sx, ph=box.ph*sy;
+    
+    // Halo
+    ctx.strokeStyle='rgba(255,224,51,.18)';
+    ctx.lineWidth=8;
+    ctx.strokeRect(px-3,py-3,pw+6,ph+6);
+    
+    // Main rect
+    ctx.strokeStyle='#FFE033';
+    ctx.lineWidth=2;
+    ctx.strokeRect(px,py,pw,ph);
+    
+    // Corners
+    ctx.strokeStyle='#FFE033';
+    ctx.lineWidth=3.5;
+    const cs=10;
+    [[px,py,cs,0,0,cs],[px+pw,py,-cs,0,0,cs],[px,py+ph,cs,0,0,-cs],[px+pw,py+ph,-cs,0,0,-cs]]
+    .forEach(([x,y,dx1,dy1,dx2,dy2])=>{
+      ctx.beginPath(); ctx.moveTo(x+dx1,y); ctx.lineTo(x,y); ctx.lineTo(x,y+dy2||y+dy1); ctx.stroke();
+    });
+    
+    // Label
+    if(box.plate){
+      const isDanger = ST.blacklist.some(b => b.plate === box.plate);
+      const lbl = box.plate;
+      ctx.font = "bold 13px 'Space Mono', monospace";
+      const tw = ctx.measureText(lbl).width;
+      ctx.fillStyle='rgba(0,0,0,.85)';
+      ctx.fillRect(px+pw/2-tw/2-5, py-22, tw+10, 18);
+      ctx.fillStyle = isDanger ? '#FF3333' : '#FFE033';
+      ctx.textAlign='center';
+      ctx.fillText(lbl, px+pw/2, py-8);
+    }
+  }
+}
+
+// ===== HISTORY RENDER =====
+function renderHistory(){
+  const el = $('history-list');
+  el.innerHTML = '';
+  for(const h of ST.history.slice(0,30)){
+    const div = document.createElement('div');
+    div.className = 'hist-item' + (h.danger?' danger':'');
+    div.innerHTML = `<span class="hp">${h.plate}</span><span class="ht">${h.ts} · ${Math.round(h.conf)}%</span>`;
+    el.appendChild(div);
+  }
+}
+
+// ===== STOP =====
+$('btn-stop').onclick = stopScanner;
+function stopScanner(){
+  if(ST.stream){ ST.stream.getTracks().forEach(t=>t.stop()); ST.stream=null; }
+  if(ST.worker){ ST.worker.terminate(); ST.worker=null; }
+  ST.boxes=[];
+  $('scanner').style.display='none';
+  updateSplashStats();
+  $('splash').style.display='flex';
+}
+
+// ===== BLACKLIST MODAL =====
+function openBL(){
+  renderBL();
+  $('bl-modal').style.display='flex';
+}
+function closeBL(){ $('bl-modal').style.display='none'; }
+
+$('btn-bl-splash').onclick = openBL;
+$('btn-bl-scan').onclick   = openBL;
+$('bl-close-btn').onclick  = closeBL;
+$('bl-modal').onclick = e => { if(e.target===$('bl-modal')) closeBL(); };
+
+$('bl-add-btn').onclick = () => {
+  const raw = $('bl-input').value.trim().toUpperCase().replace(/[^A-Z0-9-]/g,'');
+  if(!raw){ $('bl-input').focus(); return; }
+  // Accept both formatted (AA-123-BB) and raw (AA123BB)
+  const plate = raw.includes('-') ? raw : (raw.length===7 ? raw[0]+raw[1]+'-'+raw[2]+raw[3]+raw[4]+'-'+raw[5]+raw[6] : raw);
+  if(!ST.blacklist.some(b=>b.plate===plate)){
+    ST.blacklist.push({plate, ts: Date.now()});
+    saveBL();
+  }
+  $('bl-input').value='';
+  renderBL();
+};
+
+$('bl-input').addEventListener('keydown', e => { if(e.key==='Enter') $('bl-add-btn').click(); });
+
+function renderBL(){
+  const el = $('bl-list');
+  el.innerHTML = '';
+  if(!ST.blacklist.length){
+    el.innerHTML='<div style="font-size:10px;color:var(--dim);text-align:center;padding:8px;">Aucune entrée</div>';
+    return;
+  }
+  for(const b of ST.blacklist){
+    const div=document.createElement('div');
+    div.className='bl-entry';
+    div.innerHTML=`<span>${b.plate}</span><button class="bl-del" data-p="${b.plate}">✕</button>`;
+    el.appendChild(div);
+  }
+  el.querySelectorAll('.bl-del').forEach(btn=>{
+    btn.onclick=()=>{
+      ST.blacklist=ST.blacklist.filter(b=>b.plate!==btn.dataset.p);
+      saveBL(); renderBL();
+    };
+  });
+}
+
+function saveBL(){
+  try { localStorage.setItem('r_bl', JSON.stringify(ST.blacklist)); } catch(e){}
+}
+
+// ===== INPUT FORMATTING =====
+$('bl-input').addEventListener('input', function(){
+  let v=this.value.toUpperCase().replace(/[^A-Z0-9]/g,'');
+  if(v.length>2 && v.length<=5) v=v.slice(0,2)+'-'+v.slice(2);
+  if(v.length>6) v=v.slice(0,6)+'-'+v.slice(6);
+  this.value=v.slice(0,9);
+});
 </script>
 </body>
 </html>
