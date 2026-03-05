@@ -1,0 +1,1548 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no" />
+  <title>RADAR — Détection Plaques</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Barlow+Condensed:wght@300;400;700;900&display=swap" rel="stylesheet" />
+  <style>
+    /* ─────────────────────────────────────────────
+       VARIABLES & RESET
+    ───────────────────────────────────────────── */
+    :root {
+      --bg:        #050508;
+      --surface:   #0c0c14;
+      --border:    #1a1a2e;
+      --red:       #ff2244;
+      --red-dim:   #7a0f1f;
+      --green:     #00e5a0;
+      --green-dim: #003d2b;
+      --yellow:    #ffcc00;
+      --text:      #c8c8e0;
+      --text-dim:  #484860;
+      --scan:      rgba(0, 229, 160, 0.08);
+      --font-mono: 'Share Tech Mono', monospace;
+      --font-ui:   'Barlow Condensed', sans-serif;
+    }
+
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    html, body {
+      width: 100%; height: 100%;
+      background: var(--bg);
+      color: var(--text);
+      font-family: var(--font-ui);
+      overflow: hidden;
+      -webkit-tap-highlight-color: transparent;
+      touch-action: manipulation;
+    }
+
+    /* ─────────────────────────────────────────────
+       LAYOUT PRINCIPAL
+    ───────────────────────────────────────────── */
+    #app {
+      display: flex;
+      flex-direction: column;
+      width: 100vw;
+      height: 100dvh;
+      position: relative;
+    }
+
+    /* ─────────────────────────────────────────────
+       ÉCRAN D'ACCUEIL
+    ───────────────────────────────────────────── */
+    #screen-home {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      height: 100dvh;
+      padding: 32px 24px;
+      gap: 0;
+      background:
+        radial-gradient(ellipse at 50% 0%, rgba(255,34,68,0.12) 0%, transparent 60%),
+        var(--bg);
+    }
+
+    .logo-wrap {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      margin-bottom: 48px;
+    }
+
+    .logo-icon {
+      width: 80px;
+      height: 80px;
+      margin-bottom: 16px;
+      position: relative;
+    }
+
+    .logo-icon svg {
+      width: 100%;
+      height: 100%;
+    }
+
+    .logo-title {
+      font-family: var(--font-ui);
+      font-weight: 900;
+      font-size: 52px;
+      letter-spacing: 8px;
+      color: #fff;
+      line-height: 1;
+    }
+
+    .logo-sub {
+      font-family: var(--font-mono);
+      font-size: 11px;
+      letter-spacing: 4px;
+      color: var(--red);
+      margin-top: 6px;
+      text-transform: uppercase;
+    }
+
+    /* Bouton démarrer */
+    #btn-start {
+      width: 100%;
+      max-width: 340px;
+      height: 64px;
+      background: var(--red);
+      border: none;
+      border-radius: 4px;
+      color: #fff;
+      font-family: var(--font-ui);
+      font-weight: 900;
+      font-size: 22px;
+      letter-spacing: 4px;
+      text-transform: uppercase;
+      cursor: pointer;
+      position: relative;
+      overflow: hidden;
+      transition: transform 0.1s, box-shadow 0.2s;
+      box-shadow: 0 0 40px rgba(255,34,68,0.4);
+      margin-bottom: 32px;
+    }
+
+    #btn-start::before {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background: linear-gradient(135deg, rgba(255,255,255,0.15) 0%, transparent 60%);
+    }
+
+    #btn-start:active {
+      transform: scale(0.97);
+      box-shadow: 0 0 20px rgba(255,34,68,0.3);
+    }
+
+    .home-info {
+      font-family: var(--font-mono);
+      font-size: 11px;
+      color: var(--text-dim);
+      text-align: center;
+      line-height: 1.8;
+      letter-spacing: 1px;
+    }
+
+    .home-info span {
+      color: var(--green);
+    }
+
+    /* Compteur liste noire */
+    .blacklist-badge {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 4px;
+      padding: 12px 20px;
+      margin-bottom: 32px;
+      width: 100%;
+      max-width: 340px;
+    }
+
+    .blacklist-badge .dot {
+      width: 8px; height: 8px;
+      border-radius: 50%;
+      background: var(--red);
+      box-shadow: 0 0 8px var(--red);
+      flex-shrink: 0;
+    }
+
+    .blacklist-badge span {
+      font-family: var(--font-mono);
+      font-size: 12px;
+      color: var(--text);
+    }
+
+    .blacklist-badge strong {
+      color: var(--red);
+    }
+
+    /* ─────────────────────────────────────────────
+       ÉCRAN SCANNER
+    ───────────────────────────────────────────── */
+    #screen-scan {
+      display: none;
+      flex-direction: column;
+      height: 100dvh;
+      position: relative;
+    }
+
+    /* VIDÉO */
+    #video-container {
+      position: relative;
+      flex: 1;
+      overflow: hidden;
+      background: #000;
+    }
+
+    #video {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      display: block;
+    }
+
+    /* CANVAS overlay */
+    #overlay-canvas {
+      position: absolute;
+      inset: 0;
+      pointer-events: none;
+    }
+
+    /* VISEUR HUD */
+    .hud-corners {
+      position: absolute;
+      inset: 0;
+      pointer-events: none;
+    }
+
+    .corner {
+      position: absolute;
+      width: 28px;
+      height: 28px;
+      border-color: var(--green);
+      border-style: solid;
+      opacity: 0.6;
+    }
+    .corner-tl { top: 20px; left: 20px; border-width: 2px 0 0 2px; }
+    .corner-tr { top: 20px; right: 20px; border-width: 2px 2px 0 0; }
+    .corner-bl { bottom: 20px; left: 20px; border-width: 0 0 2px 2px; }
+    .corner-br { bottom: 20px; right: 20px; border-width: 0 2px 2px 0; }
+
+    /* LIGNE DE SCAN ANIMÉE */
+    .scan-line {
+      position: absolute;
+      left: 0; right: 0;
+      height: 2px;
+      background: linear-gradient(90deg,
+        transparent 0%,
+        var(--green) 30%,
+        rgba(0,229,160,0.8) 50%,
+        var(--green) 70%,
+        transparent 100%);
+      box-shadow: 0 0 12px var(--green);
+      animation: scan-move 3s linear infinite;
+      opacity: 0.7;
+    }
+
+    @keyframes scan-move {
+      0%   { top: 10%; }
+      50%  { top: 88%; }
+      100% { top: 10%; }
+    }
+
+    /* FPS / STATUS HUD */
+    .hud-top {
+      position: absolute;
+      top: 12px;
+      left: 50%;
+      transform: translateX(-50%);
+      font-family: var(--font-mono);
+      font-size: 10px;
+      letter-spacing: 2px;
+      color: rgba(0,229,160,0.7);
+      background: rgba(0,0,0,0.5);
+      padding: 3px 10px;
+      border-radius: 2px;
+      pointer-events: none;
+      white-space: nowrap;
+    }
+
+    /* ─────────────────────────────────────────────
+       ALERTE ROUGE (plaque liste noire)
+    ───────────────────────────────────────────── */
+    #alert-overlay {
+      position: absolute;
+      inset: 0;
+      display: none;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      z-index: 100;
+      background: rgba(5, 0, 5, 0.85);
+      animation: flash-bg 0.3s ease;
+    }
+
+    #alert-overlay.active {
+      display: flex;
+    }
+
+    @keyframes flash-bg {
+      0%, 100% { background: rgba(5, 0, 5, 0.85); }
+      50%       { background: rgba(180, 0, 20, 0.6); }
+    }
+
+    .alert-ring {
+      width: 140px;
+      height: 140px;
+      border-radius: 50%;
+      border: 3px solid var(--red);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin-bottom: 28px;
+      box-shadow: 0 0 60px rgba(255,34,68,0.5),
+                  inset 0 0 40px rgba(255,34,68,0.1);
+      animation: pulse-ring 0.8s ease-in-out infinite;
+      position: relative;
+    }
+
+    .alert-ring::before {
+      content: '';
+      position: absolute;
+      inset: -12px;
+      border-radius: 50%;
+      border: 1px solid rgba(255,34,68,0.3);
+      animation: pulse-ring 0.8s ease-in-out 0.2s infinite;
+    }
+
+    @keyframes pulse-ring {
+      0%, 100% { transform: scale(1); opacity: 1; }
+      50%       { transform: scale(1.06); opacity: 0.7; }
+    }
+
+    .alert-icon {
+      font-size: 56px;
+      line-height: 1;
+    }
+
+    .alert-title {
+      font-family: var(--font-ui);
+      font-weight: 900;
+      font-size: 36px;
+      letter-spacing: 6px;
+      color: var(--red);
+      text-transform: uppercase;
+      margin-bottom: 8px;
+      text-align: center;
+    }
+
+    .alert-plate {
+      font-family: var(--font-mono);
+      font-size: 32px;
+      color: #fff;
+      background: var(--red);
+      padding: 8px 24px;
+      border-radius: 4px;
+      letter-spacing: 4px;
+      margin-bottom: 16px;
+    }
+
+    .alert-msg {
+      font-family: var(--font-ui);
+      font-weight: 700;
+      font-size: 20px;
+      letter-spacing: 3px;
+      color: var(--yellow);
+      text-transform: uppercase;
+      text-align: center;
+      margin-bottom: 32px;
+    }
+
+    #btn-dismiss {
+      padding: 14px 40px;
+      background: transparent;
+      border: 2px solid var(--red);
+      color: var(--red);
+      font-family: var(--font-ui);
+      font-weight: 700;
+      font-size: 16px;
+      letter-spacing: 3px;
+      text-transform: uppercase;
+      cursor: pointer;
+      border-radius: 3px;
+      transition: background 0.15s;
+    }
+
+    #btn-dismiss:active {
+      background: rgba(255,34,68,0.2);
+    }
+
+    /* ─────────────────────────────────────────────
+       BARRE BAS — CONTRÔLES SCAN
+    ───────────────────────────────────────────── */
+    #scan-controls {
+      background: var(--surface);
+      border-top: 1px solid var(--border);
+      padding: 12px 16px;
+      padding-bottom: max(12px, env(safe-area-inset-bottom));
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    #btn-stop-scan {
+      flex-shrink: 0;
+      width: 48px;
+      height: 48px;
+      border-radius: 50%;
+      background: var(--red-dim);
+      border: 2px solid var(--red);
+      color: var(--red);
+      font-size: 18px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: background 0.15s;
+    }
+
+    #btn-stop-scan:active { background: rgba(255,34,68,0.3); }
+
+    /* Dernière plaque */
+    .last-plate-wrap {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+    }
+
+    .last-plate-label {
+      font-family: var(--font-mono);
+      font-size: 9px;
+      letter-spacing: 2px;
+      color: var(--text-dim);
+      text-transform: uppercase;
+    }
+
+    #last-plate-display {
+      font-family: var(--font-mono);
+      font-size: 22px;
+      letter-spacing: 3px;
+      color: var(--green);
+      line-height: 1;
+    }
+
+    /* Compteur scan */
+    .scan-counter {
+      flex-shrink: 0;
+      text-align: right;
+    }
+
+    .scan-counter .num {
+      font-family: var(--font-mono);
+      font-size: 24px;
+      color: var(--text);
+      line-height: 1;
+    }
+
+    .scan-counter .lbl {
+      font-family: var(--font-mono);
+      font-size: 9px;
+      letter-spacing: 2px;
+      color: var(--text-dim);
+    }
+
+    /* ─────────────────────────────────────────────
+       TOAST notification plaque normale
+    ───────────────────────────────────────────── */
+    #toast {
+      position: absolute;
+      bottom: 90px;
+      left: 50%;
+      transform: translateX(-50%) translateY(20px);
+      background: rgba(0,229,160,0.15);
+      border: 1px solid var(--green);
+      border-radius: 4px;
+      padding: 8px 20px;
+      font-family: var(--font-mono);
+      font-size: 16px;
+      letter-spacing: 3px;
+      color: var(--green);
+      white-space: nowrap;
+      opacity: 0;
+      transition: opacity 0.3s, transform 0.3s;
+      pointer-events: none;
+      z-index: 50;
+    }
+
+    #toast.show {
+      opacity: 1;
+      transform: translateX(-50%) translateY(0);
+    }
+
+    /* ─────────────────────────────────────────────
+       MODAL LISTE NOIRE
+    ───────────────────────────────────────────── */
+    #modal-blacklist {
+      position: fixed;
+      inset: 0;
+      z-index: 200;
+      display: none;
+      flex-direction: column;
+      background: var(--bg);
+    }
+
+    #modal-blacklist.open {
+      display: flex;
+    }
+
+    .modal-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 16px 20px;
+      border-bottom: 1px solid var(--border);
+      background: var(--surface);
+    }
+
+    .modal-title {
+      font-family: var(--font-ui);
+      font-weight: 700;
+      font-size: 18px;
+      letter-spacing: 3px;
+      text-transform: uppercase;
+      color: var(--red);
+    }
+
+    .modal-close {
+      width: 36px; height: 36px;
+      background: none;
+      border: 1px solid var(--border);
+      color: var(--text);
+      font-size: 18px;
+      cursor: pointer;
+      border-radius: 3px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .modal-body {
+      flex: 1;
+      overflow-y: auto;
+      padding: 16px 20px;
+    }
+
+    .plate-input-wrap {
+      display: flex;
+      gap: 10px;
+      margin-bottom: 20px;
+    }
+
+    #plate-input {
+      flex: 1;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 3px;
+      padding: 12px 14px;
+      font-family: var(--font-mono);
+      font-size: 16px;
+      letter-spacing: 3px;
+      color: #fff;
+      text-transform: uppercase;
+      outline: none;
+    }
+
+    #plate-input:focus {
+      border-color: var(--red);
+    }
+
+    #btn-add-plate {
+      padding: 12px 20px;
+      background: var(--red);
+      border: none;
+      border-radius: 3px;
+      color: #fff;
+      font-family: var(--font-ui);
+      font-weight: 700;
+      font-size: 14px;
+      letter-spacing: 2px;
+      cursor: pointer;
+    }
+
+    .plate-list {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    .plate-item {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 3px;
+      padding: 12px 16px;
+    }
+
+    .plate-item .plate-text {
+      font-family: var(--font-mono);
+      font-size: 18px;
+      letter-spacing: 3px;
+      color: var(--red);
+    }
+
+    .plate-item .plate-note {
+      font-family: var(--font-mono);
+      font-size: 10px;
+      color: var(--text-dim);
+      margin-top: 2px;
+      letter-spacing: 1px;
+    }
+
+    .btn-del-plate {
+      width: 32px; height: 32px;
+      background: none;
+      border: 1px solid var(--border);
+      color: var(--text-dim);
+      font-size: 14px;
+      cursor: pointer;
+      border-radius: 3px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+    }
+
+    /* ─────────────────────────────────────────────
+       MODAL HISTORIQUE
+    ───────────────────────────────────────────── */
+    #modal-history {
+      position: fixed;
+      inset: 0;
+      z-index: 200;
+      display: none;
+      flex-direction: column;
+      background: var(--bg);
+    }
+    #modal-history.open { display: flex; }
+
+    .history-list {
+      flex: 1;
+      overflow-y: auto;
+      padding: 16px 20px;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    .history-item {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 3px;
+      padding: 12px 16px;
+    }
+
+    .history-item.danger {
+      border-color: var(--red-dim);
+      background: rgba(122, 15, 31, 0.2);
+    }
+
+    .history-plate {
+      font-family: var(--font-mono);
+      font-size: 18px;
+      letter-spacing: 3px;
+    }
+
+    .history-item.danger .history-plate { color: var(--red); }
+    .history-item:not(.danger) .history-plate { color: var(--green); }
+
+    .history-meta {
+      font-family: var(--font-mono);
+      font-size: 10px;
+      color: var(--text-dim);
+      text-align: right;
+      letter-spacing: 1px;
+      line-height: 1.6;
+    }
+
+    /* ─────────────────────────────────────────────
+       NAV BAS (home)
+    ───────────────────────────────────────────── */
+    .home-nav {
+      display: flex;
+      gap: 12px;
+      width: 100%;
+      max-width: 340px;
+      margin-bottom: 0;
+    }
+
+    .nav-btn {
+      flex: 1;
+      padding: 14px 0;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 4px;
+      color: var(--text);
+      font-family: var(--font-ui);
+      font-weight: 700;
+      font-size: 13px;
+      letter-spacing: 2px;
+      text-transform: uppercase;
+      cursor: pointer;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 4px;
+      transition: border-color 0.15s;
+    }
+
+    .nav-btn:active { border-color: var(--green); }
+    .nav-btn .nav-icon { font-size: 20px; }
+
+    /* ─────────────────────────────────────────────
+       PERMISSION / ERROR
+    ───────────────────────────────────────────── */
+    #permission-error {
+      position: fixed;
+      inset: 0;
+      z-index: 300;
+      display: none;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      background: var(--bg);
+      padding: 32px;
+      text-align: center;
+      gap: 16px;
+    }
+
+    #permission-error.show { display: flex; }
+
+    .perm-icon { font-size: 48px; }
+    .perm-title {
+      font-family: var(--font-ui);
+      font-weight: 700;
+      font-size: 22px;
+      letter-spacing: 2px;
+      color: var(--red);
+    }
+
+    .perm-text {
+      font-family: var(--font-mono);
+      font-size: 12px;
+      color: var(--text-dim);
+      line-height: 1.8;
+    }
+
+    #btn-retry-perm {
+      padding: 14px 32px;
+      background: var(--red);
+      border: none;
+      border-radius: 3px;
+      color: #fff;
+      font-family: var(--font-ui);
+      font-weight: 700;
+      font-size: 15px;
+      letter-spacing: 2px;
+      cursor: pointer;
+    }
+
+    /* ─────────────────────────────────────────────
+       UTILITAIRES
+    ───────────────────────────────────────────── */
+    .hidden { display: none !important; }
+
+    /* Scan actif → bordure verte pulsante */
+    #screen-scan.scanning #video-container::after {
+      content: '';
+      position: absolute;
+      inset: 0;
+      border: 2px solid var(--green);
+      pointer-events: none;
+      animation: border-pulse 2s ease infinite;
+      opacity: 0.3;
+    }
+
+    @keyframes border-pulse {
+      0%, 100% { opacity: 0.15; }
+      50%       { opacity: 0.5; }
+    }
+
+    /* TRAITEMENT en cours */
+    .processing-dot {
+      width: 8px; height: 8px;
+      border-radius: 50%;
+      background: var(--yellow);
+      animation: blink 1s step-end infinite;
+      display: inline-block;
+      margin-right: 6px;
+    }
+
+    @keyframes blink {
+      0%, 100% { opacity: 1; }
+      50%       { opacity: 0; }
+    }
+
+    /* Bbox détectée sur canvas */
+    .bbox-label {
+      position: absolute;
+      font-family: var(--font-mono);
+      font-size: 12px;
+      color: var(--green);
+      pointer-events: none;
+    }
+  </style>
+</head>
+<body>
+<div id="app">
+
+  <!-- ══════════════════════════════════════════
+       ÉCRAN ACCUEIL
+  ══════════════════════════════════════════ -->
+  <div id="screen-home">
+    <div class="logo-wrap">
+      <div class="logo-icon">
+        <svg viewBox="0 0 80 80" fill="none">
+          <!-- Radar cercles -->
+          <circle cx="40" cy="40" r="36" stroke="#ff2244" stroke-width="1" stroke-dasharray="4 4" opacity="0.3"/>
+          <circle cx="40" cy="40" r="24" stroke="#ff2244" stroke-width="1" stroke-dasharray="4 4" opacity="0.5"/>
+          <circle cx="40" cy="40" r="12" stroke="#ff2244" stroke-width="1.5" opacity="0.8"/>
+          <!-- Ligne radar -->
+          <line x1="40" y1="40" x2="66" y2="20" stroke="#ff2244" stroke-width="2" opacity="0.9"/>
+          <line x1="40" y1="4"  x2="40" y2="40" stroke="#ff2244" stroke-width="1" stroke-dasharray="2 2" opacity="0.4"/>
+          <line x1="76" y1="40" x2="40" y2="40" stroke="#ff2244" stroke-width="1" stroke-dasharray="2 2" opacity="0.4"/>
+          <!-- Point central -->
+          <circle cx="40" cy="40" r="3" fill="#ff2244"/>
+          <!-- Point cible -->
+          <circle cx="63" cy="22" r="4" fill="none" stroke="#ff2244" stroke-width="2" opacity="0.9"/>
+          <circle cx="63" cy="22" r="1.5" fill="#ff2244" opacity="0.9"/>
+        </svg>
+      </div>
+      <div class="logo-title">RADAR</div>
+      <div class="logo-sub">Système de surveillance ANPR</div>
+    </div>
+
+    <div class="blacklist-badge">
+      <div class="dot"></div>
+      <span>Liste noire : <strong id="blacklist-count">0</strong> plaque(s) enregistrée(s)</span>
+    </div>
+
+    <button id="btn-start">
+      ▶ DÉMARRER LE SCAN
+    </button>
+
+    <div class="home-nav">
+      <button class="nav-btn" onclick="openBlacklist()">
+        <span class="nav-icon">🚫</span>
+        LISTE NOIRE
+      </button>
+      <button class="nav-btn" onclick="openHistory()">
+        <span class="nav-icon">📋</span>
+        HISTORIQUE
+      </button>
+      <button class="nav-btn" onclick="exportJSON()">
+        <span class="nav-icon">💾</span>
+        EXPORT JSON
+      </button>
+    </div>
+
+    <div class="home-info" style="margin-top:24px">
+      Téléphone en <span>mode portrait</span> · Caméra arrière<br/>
+      Détection plaques françaises <span>SIV</span> uniquement
+    </div>
+  </div>
+
+  <!-- ══════════════════════════════════════════
+       ÉCRAN SCAN
+  ══════════════════════════════════════════ -->
+  <div id="screen-scan">
+    <div id="video-container">
+      <video id="video" autoplay playsinline muted></video>
+      <canvas id="overlay-canvas"></canvas>
+
+      <!-- Viseur -->
+      <div class="hud-corners">
+        <div class="corner corner-tl"></div>
+        <div class="corner corner-tr"></div>
+        <div class="corner corner-bl"></div>
+        <div class="corner corner-br"></div>
+        <div class="scan-line"></div>
+      </div>
+
+      <!-- HUD infos -->
+      <div class="hud-top" id="hud-status">INITIALISATION...</div>
+
+      <!-- Toast plaque normale -->
+      <div id="toast"></div>
+
+      <!-- ALERTE LISTE NOIRE -->
+      <div id="alert-overlay">
+        <div class="alert-ring">
+          <span class="alert-icon">⚠️</span>
+        </div>
+        <div class="alert-title">ATTENTION</div>
+        <div id="alert-plate" class="alert-plate">AB-123-CD</div>
+        <div class="alert-msg">⚡ RALENTISSEZ IMMÉDIATEMENT ⚡</div>
+        <button id="btn-dismiss">OK — COMPRIS</button>
+      </div>
+    </div>
+
+    <!-- Barre contrôles bas -->
+    <div id="scan-controls">
+      <button id="btn-stop-scan" title="Arrêter">■</button>
+      <div class="last-plate-wrap">
+        <div class="last-plate-label">DERNIÈRE PLAQUE</div>
+        <div id="last-plate-display">—</div>
+      </div>
+      <div class="scan-counter">
+        <div class="num" id="scan-count">0</div>
+        <div class="lbl">SCANS</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══════════════════════════════════════════
+       MODAL LISTE NOIRE
+  ══════════════════════════════════════════ -->
+  <div id="modal-blacklist">
+    <div class="modal-header">
+      <span class="modal-title">🚫 Liste Noire</span>
+      <button class="modal-close" onclick="closeBlacklist()">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="plate-input-wrap">
+        <input type="text" id="plate-input"
+               placeholder="AB-123-CD"
+               maxlength="9"
+               inputmode="text"
+               autocomplete="off"
+               autocapitalize="characters" />
+        <button id="btn-add-plate" onclick="addToBlacklist()">AJOUTER</button>
+      </div>
+      <div class="plate-list" id="blacklist-items"></div>
+    </div>
+  </div>
+
+  <!-- ══════════════════════════════════════════
+       MODAL HISTORIQUE
+  ══════════════════════════════════════════ -->
+  <div id="modal-history">
+    <div class="modal-header">
+      <span class="modal-title">📋 Historique</span>
+      <button class="modal-close" onclick="closeHistory()">✕</button>
+    </div>
+    <div class="history-list" id="history-items"></div>
+  </div>
+
+  <!-- ERREUR PERMISSION CAMÉRA -->
+  <div id="permission-error">
+    <div class="perm-icon">📷</div>
+    <div class="perm-title">Accès caméra refusé</div>
+    <div class="perm-text">
+      Autorisez l'accès à la caméra<br/>
+      dans les paramètres de votre navigateur<br/>
+      puis réessayez.
+    </div>
+    <button id="btn-retry-perm" onclick="retryCamera()">RÉESSAYER</button>
+  </div>
+
+</div><!-- #app -->
+
+<!-- ════════════════════════════════════════════
+     JAVASCRIPT PRINCIPAL
+═════════════════════════════════════════════ -->
+<script>
+// ─────────────────────────────────────────────
+// ÉTAT GLOBAL
+// ─────────────────────────────────────────────
+const STATE = {
+  scanning:       false,
+  stream:         null,
+  scanInterval:   null,
+  scanCount:      0,
+  blacklist:      [],   // [{plate, addedAt}]
+  history:        [],   // [{plate, ts, danger}]
+  lastPlate:      null,
+  processing:     false,
+  alertActive:    false,
+  alertedPlates:  new Set(), // plaques déjà alertées (reset après 60s)
+};
+
+// Intervalle entre deux captures OCR (ms) — adapté CPU/réseau
+const SCAN_INTERVAL_MS = 2500;
+
+// ─────────────────────────────────────────────
+// PERSISTANCE JSON (localStorage = "fichier" JSON)
+// ─────────────────────────────────────────────
+function persist() {
+  try {
+    localStorage.setItem('radar_blacklist', JSON.stringify(STATE.blacklist));
+    localStorage.setItem('radar_history',   JSON.stringify(STATE.history.slice(-200)));
+  } catch(e) {}
+}
+
+function loadPersist() {
+  try {
+    const bl = localStorage.getItem('radar_blacklist');
+    const hi = localStorage.getItem('radar_history');
+    if (bl) STATE.blacklist = JSON.parse(bl);
+    if (hi) STATE.history   = JSON.parse(hi);
+  } catch(e) {}
+}
+
+// Export JSON (téléchargement)
+function exportJSON() {
+  const data = {
+    exported_at: new Date().toISOString(),
+    blacklist:   STATE.blacklist,
+    history:     STATE.history,
+  };
+  const blob = new Blob([JSON.stringify(data, null, 2)],
+                         {type: 'application/json'});
+  const url  = URL.createObjectURL(blob);
+  const a    = document.createElement('a');
+  a.href     = url;
+  a.download = `radar_${Date.now()}.json`;
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
+// ─────────────────────────────────────────────
+// BLACKLIST UI
+// ─────────────────────────────────────────────
+function updateBlacklistCount() {
+  document.getElementById('blacklist-count').textContent = STATE.blacklist.length;
+}
+
+function renderBlacklist() {
+  const container = document.getElementById('blacklist-items');
+  container.innerHTML = '';
+  if (!STATE.blacklist.length) {
+    container.innerHTML = `<div style="font-family:var(--font-mono);font-size:12px;
+      color:var(--text-dim);text-align:center;padding:32px">
+      Aucune plaque dans la liste noire</div>`;
+    return;
+  }
+  STATE.blacklist.forEach((item, idx) => {
+    const el = document.createElement('div');
+    el.className = 'plate-item';
+    el.innerHTML = `
+      <div>
+        <div class="plate-text">${item.plate}</div>
+        <div class="plate-note">Ajoutée le ${new Date(item.addedAt).toLocaleDateString('fr-FR')}</div>
+      </div>
+      <button class="btn-del-plate" onclick="removeFromBlacklist(${idx})">✕</button>`;
+    container.appendChild(el);
+  });
+}
+
+function addToBlacklist() {
+  const input = document.getElementById('plate-input');
+  const raw   = input.value.toUpperCase().replace(/[^A-Z0-9]/g, '');
+  if (!isValidSIV(raw)) {
+    input.style.borderColor = 'var(--red)';
+    input.placeholder = 'Format: AB123CD';
+    setTimeout(() => {
+      input.style.borderColor = '';
+      input.placeholder = 'AB-123-CD';
+    }, 1500);
+    return;
+  }
+  const plate = formatSIV(raw);
+  if (STATE.blacklist.find(b => b.plate === plate)) return;
+  STATE.blacklist.push({ plate, addedAt: Date.now() });
+  persist();
+  updateBlacklistCount();
+  renderBlacklist();
+  input.value = '';
+}
+
+function removeFromBlacklist(idx) {
+  STATE.blacklist.splice(idx, 1);
+  persist();
+  updateBlacklistCount();
+  renderBlacklist();
+}
+
+function openBlacklist()  {
+  renderBlacklist();
+  document.getElementById('modal-blacklist').classList.add('open');
+}
+
+function closeBlacklist() {
+  document.getElementById('modal-blacklist').classList.remove('open');
+}
+
+// Enter pour ajouter
+document.getElementById('plate-input').addEventListener('keydown', e => {
+  if (e.key === 'Enter') addToBlacklist();
+});
+
+// ─────────────────────────────────────────────
+// HISTORIQUE UI
+// ─────────────────────────────────────────────
+function renderHistory() {
+  const container = document.getElementById('history-items');
+  container.innerHTML = '';
+  if (!STATE.history.length) {
+    container.innerHTML = `<div style="font-family:var(--font-mono);font-size:12px;
+      color:var(--text-dim);text-align:center;padding:32px">
+      Aucune plaque détectée</div>`;
+    return;
+  }
+  // Du plus récent au plus ancien
+  [...STATE.history].reverse().forEach(item => {
+    const el = document.createElement('div');
+    el.className = 'history-item' + (item.danger ? ' danger' : '');
+    el.innerHTML = `
+      <div class="history-plate">${item.plate}</div>
+      <div class="history-meta">
+        ${new Date(item.ts).toLocaleTimeString('fr-FR')}<br/>
+        ${item.danger ? '⚠️ LISTE NOIRE' : '✓ Normal'}
+      </div>`;
+    container.appendChild(el);
+  });
+}
+
+function openHistory()  { renderHistory(); document.getElementById('modal-history').classList.add('open'); }
+function closeHistory() { document.getElementById('modal-history').classList.remove('open'); }
+
+// ─────────────────────────────────────────────
+// VALIDATION SIV FRANÇAISE
+// ─────────────────────────────────────────────
+const SIV_RE  = /^[A-Z]{2}[0-9]{3}[A-Z]{2}$/;
+const C2I = {O:'0',I:'1',J:'3',A:'4',G:'6',S:'5'};
+const I2C = {'0':'O','1':'I','3':'J','4':'A','6':'G','5':'S'};
+
+function applyCorrections(t7) {
+  // Position 0,1,4,5,6 = lettres ; 2,3 = chiffres (SIV AA-NNN-AA)
+  // MAIS le format SIV est : 2L + 3D + 2L → positions 0,1 = lettres, 2,3,4 = chiffres, 5,6 = lettres
+  const map = [I2C, I2C, C2I, C2I, C2I, I2C, I2C];
+  return t7.split('').map((c,i) => map[i][c] || c).join('');
+}
+
+function isValidSIV(t7) {
+  return SIV_RE.test(applyCorrections(t7));
+}
+
+function formatSIV(t7) {
+  const c = applyCorrections(t7);
+  return `${c.slice(0,2)}-${c.slice(2,5)}-${c.slice(5)}`;
+}
+
+/**
+ * Valide et formate du texte OCR brut en plaque SIV française.
+ * Multi-passes (identique à app.py Python).
+ * @returns {string|null}
+ */
+function validateSIV(raw) {
+  const clean = raw.toUpperCase().replace(/[^A-Z0-9]/g, '');
+
+  // Pass 1 : exactement 7 chars
+  if (clean.length === 7 && isValidSIV(clean)) return formatSIV(clean);
+
+  // Pass 2 : fenêtre glissante (parasites OCR autour)
+  for (let s = 0; s <= clean.length - 7; s++) {
+    const sub = clean.slice(s, s+7);
+    if (isValidSIV(sub)) return formatSIV(sub);
+  }
+
+  // Pass 3 : 6 chars → chiffre manquant
+  if (clean.length === 6) {
+    for (const pos of [2, 3, 4]) {
+      for (const d of '0123456789') {
+        const cand = clean.slice(0,pos) + d + clean.slice(pos);
+        if (isValidSIV(cand)) return formatSIV(cand);
+      }
+    }
+  }
+
+  // Pass 4 : 8 chars → char parasite
+  if (clean.length === 8) {
+    for (let pos = 0; pos < 8; pos++) {
+      const cand = clean.slice(0,pos) + clean.slice(pos+1);
+      if (isValidSIV(cand)) return formatSIV(cand);
+    }
+  }
+
+  return null;
+}
+
+// ─────────────────────────────────────────────
+// OCR VIA API ANTHROPIC (claude-sonnet vision)
+// ─────────────────────────────────────────────
+/**
+ * Envoie une frame JPEG (base64) à Claude claude-sonnet-4-20250514.
+ * Claude doit extraire les plaques françaises visibles.
+ * @param {string} imageB64 - JPEG base64 (sans préfixe data:)
+ * @returns {Promise<string[]>} Liste de plaques format "AB-123-CD"
+ */
+async function runOCR(imageB64) {
+  const prompt = `Tu es un système ANPR (Automatic Number Plate Recognition) spécialisé dans les plaques d'immatriculation françaises au format SIV (AA-NNN-AA : 2 lettres, 3 chiffres, 2 lettres, ex: AB-123-CD).
+
+Analyse cette image de dashcam et extrais TOUTES les plaques françaises visibles.
+
+RÈGLES STRICTES :
+1. Ne retourner QUE les plaques françaises format SIV (2L-3N-2L)
+2. Ignorer les plaques étrangères, motos, remorques
+3. Si l'image est floue ou la plaque illisible, ne pas inventer
+4. Corriger les confusions OCR classiques : O↔0, I↔1, S↔5, G↔6
+
+FORMAT DE RÉPONSE : JSON uniquement, rien d'autre.
+{"plates": ["AB-123-CD", "EF-456-GH"]}
+Si aucune plaque : {"plates": []}`;
+
+  const resp = await fetch('/api/anthropic', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      model: 'claude-sonnet-4-20250514',
+      max_tokens: 256,
+      messages: [{
+        role: 'user',
+        content: [
+          {
+            type: 'image',
+            source: { type: 'base64', media_type: 'image/jpeg', data: imageB64 }
+          },
+          { type: 'text', text: prompt }
+        ]
+      }]
+    })
+  });
+
+  if (!resp.ok) {
+    console.error('API error', resp.status, await resp.text());
+    return [];
+  }
+
+  const data = await resp.json();
+  const text = (data.content || [])
+    .filter(b => b.type === 'text')
+    .map(b => b.text)
+    .join('');
+
+  try {
+    // Extrait le JSON même si du texte parasite existe
+    const match = text.match(/\{[\s\S]*"plates"[\s\S]*\}/);
+    if (!match) return [];
+    const parsed = JSON.parse(match[0]);
+    const plates = (parsed.plates || [])
+      .map(p => validateSIV(p))
+      .filter(Boolean);
+    return [...new Set(plates)]; // dédoublonner
+  } catch(e) {
+    console.error('JSON parse error:', e, text);
+    return [];
+  }
+}
+
+// ─────────────────────────────────────────────
+// CAPTURE FRAME (canvas → JPEG base64)
+// ─────────────────────────────────────────────
+const captureCanvas = document.createElement('canvas');
+const captureCtx    = captureCanvas.getContext('2d');
+
+function captureFrame(quality = 0.75) {
+  const video  = document.getElementById('video');
+  const W      = video.videoWidth;
+  const H      = video.videoHeight;
+  if (!W || !H) return null;
+
+  // Réduire à max 720px de large pour alléger l'envoi
+  const maxW   = 720;
+  const scale  = W > maxW ? maxW / W : 1;
+  captureCanvas.width  = Math.round(W * scale);
+  captureCanvas.height = Math.round(H * scale);
+  captureCtx.drawImage(video, 0, 0, captureCanvas.width, captureCanvas.height);
+
+  const dataUrl = captureCanvas.toDataURL('image/jpeg', quality);
+  return dataUrl.split(',')[1]; // strip "data:image/jpeg;base64,"
+}
+
+// ─────────────────────────────────────────────
+// AUDIO ALERTS
+// ─────────────────────────────────────────────
+let audioCtx = null;
+
+function getAudioCtx() {
+  if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+  return audioCtx;
+}
+
+/**
+ * Joue 3 bips urgents (style radar police).
+ */
+function playAlertBeeps() {
+  const ctx = getAudioCtx();
+  const freqs   = [880, 1100, 880];
+  const pattern = [0, 0.22, 0.44]; // offsets en secondes
+
+  pattern.forEach((offset, i) => {
+    const osc  = ctx.createOscillator();
+    const gain = ctx.createGain();
+    osc.connect(gain);
+    gain.connect(ctx.destination);
+
+    osc.type      = 'square';
+    osc.frequency.value = freqs[i];
+    gain.gain.setValueAtTime(0.0, ctx.currentTime + offset);
+    gain.gain.linearRampToValueAtTime(0.3, ctx.currentTime + offset + 0.01);
+    gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + offset + 0.18);
+
+    osc.start(ctx.currentTime + offset);
+    osc.stop(ctx.currentTime  + offset + 0.2);
+  });
+}
+
+/**
+ * Bip court de confirmation (plaque normale détectée).
+ */
+function playConfirmBeep() {
+  try {
+    const ctx  = getAudioCtx();
+    const osc  = ctx.createOscillator();
+    const gain = ctx.createGain();
+    osc.connect(gain);
+    gain.connect(ctx.destination);
+    osc.type      = 'sine';
+    osc.frequency.value = 660;
+    gain.gain.setValueAtTime(0.0, ctx.currentTime);
+    gain.gain.linearRampToValueAtTime(0.1, ctx.currentTime + 0.01);
+    gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.12);
+    osc.start(ctx.currentTime);
+    osc.stop(ctx.currentTime + 0.13);
+  } catch(e) {}
+}
+
+// ─────────────────────────────────────────────
+// ALERTE LISTE NOIRE
+// ─────────────────────────────────────────────
+function triggerAlert(plate) {
+  if (STATE.alertActive) return;
+
+  // Éviter de ré-alerter la même plaque dans les 60s
+  if (STATE.alertedPlates.has(plate)) return;
+  STATE.alertedPlates.add(plate);
+  setTimeout(() => STATE.alertedPlates.delete(plate), 60000);
+
+  STATE.alertActive = true;
+  document.getElementById('alert-plate').textContent = plate;
+  document.getElementById('alert-overlay').classList.add('active');
+
+  // Vibration (mobile)
+  if (navigator.vibrate) {
+    navigator.vibrate([200, 100, 200, 100, 400]);
+  }
+
+  // 3 bips urgents
+  playAlertBeeps();
+  setTimeout(playAlertBeeps, 1000);
+  setTimeout(playAlertBeeps, 2000);
+}
+
+document.getElementById('btn-dismiss').addEventListener('click', () => {
+  STATE.alertActive = false;
+  document.getElementById('alert-overlay').classList.remove('active');
+});
+
+// ─────────────────────────────────────────────
+// TRAITEMENT PLAQUE DÉTECTÉE
+// ─────────────────────────────────────────────
+function handleDetectedPlate(plate) {
+  const isDanger = STATE.blacklist.some(b => b.plate === plate);
+
+  // Log historique
+  STATE.history.push({ plate, ts: Date.now(), danger: isDanger });
+  persist();
+
+  // Mise à jour UI
+  const lastDisplay = document.getElementById('last-plate-display');
+  lastDisplay.textContent = plate;
+  lastDisplay.style.color = isDanger ? 'var(--red)' : 'var(--green)';
+
+  STATE.scanCount++;
+  document.getElementById('scan-count').textContent = STATE.scanCount;
+
+  if (isDanger) {
+    triggerAlert(plate);
+  } else {
+    playConfirmBeep();
+    showToast(plate);
+  }
+}
+
+// ─────────────────────────────────────────────
+// TOAST
+// ─────────────────────────────────────────────
+let toastTimer = null;
+function showToast(text) {
+  const el = document.getElementById('toast');
+  el.textContent = text;
+  el.classList.add('show');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => el.classList.remove('show'), 2500);
+}
+
+// ─────────────────────────────────────────────
+// BOUCLE DE SCAN
+// ─────────────────────────────────────────────
+async function scanLoop() {
+  if (!STATE.scanning || STATE.processing || STATE.alertActive) return;
+
+  const hud = document.getElementById('hud-status');
+
+  try {
+    STATE.processing = true;
+    hud.innerHTML = '<span class="processing-dot"></span>ANALYSE EN COURS...';
+
+    const imageB64 = captureFrame(0.75);
+    if (!imageB64) {
+      hud.textContent = 'CAMÉRA NON PRÊTE';
+      return;
+    }
+
+    const plates = await runOCR(imageB64);
+
+    if (plates.length) {
+      hud.textContent = `✓ ${plates.length} PLAQUE(S) DÉTECTÉE(S)`;
+      // Traiter chaque plaque unique (éviter doublons sur même frame)
+      const seen = new Set();
+      for (const p of plates) {
+        if (!seen.has(p)) {
+          seen.add(p);
+          handleDetectedPlate(p);
+          await delay(150);
+        }
+      }
+    } else {
+      hud.textContent = 'SCAN ACTIF · AUCUNE PLAQUE';
+    }
+
+  } catch(e) {
+    console.error('Scan error:', e);
+    hud.textContent = 'ERREUR — NOUVELLE TENTATIVE...';
+  } finally {
+    STATE.processing = false;
+  }
+}
+
+function delay(ms) { return new Promise(r => setTimeout(r, ms)); }
+
+// ─────────────────────────────────────────────
+// CAMÉRA
+// ─────────────────────────────────────────────
+async function startCamera() {
+  // Priorité caméra arrière sur mobile
+  const constraints = {
+    video: {
+      facingMode: { ideal: 'environment' },
+      width:  { ideal: 1920 },
+      height: { ideal: 1080 },
+    },
+    audio: false,
+  };
+
+  try {
+    const stream = await navigator.mediaDevices.getUserMedia(constraints);
+    STATE.stream = stream;
+    const video  = document.getElementById('video');
+    video.srcObject = stream;
+    await new Promise(r => { video.onloadedmetadata = r; });
+    await video.play();
+    return true;
+  } catch(e) {
+    console.error('Camera error:', e);
+    return false;
+  }
+}
+
+function stopCamera() {
+  if (STATE.stream) {
+    STATE.stream.getTracks().forEach(t => t.stop());
+    STATE.stream = null;
+  }
+}
+
+// ─────────────────────────────────────────────
+// NAVIGATION PRINCIPALE
+// ─────────────────────────────────────────────
+async function startScan() {
+  const home = document.getElementById('screen-home');
+  const scan = document.getElementById('screen-scan');
+  const errScreen = document.getElementById('permission-error');
+
+  home.style.display = 'none';
+
+  const ok = await startCamera();
+  if (!ok) {
+    home.style.display = '';
+    errScreen.classList.add('show');
+    return;
+  }
+
+  scan.style.display = 'flex';
+  scan.classList.add('scanning');
+  STATE.scanning  = true;
+  STATE.scanCount = 0;
+  document.getElementById('scan-count').textContent = '0';
+  document.getElementById('last-plate-display').textContent = '—';
+  document.getElementById('hud-status').textContent = 'SCAN ACTIF · EN ATTENTE';
+
+  // Démarrer la boucle
+  STATE.scanInterval = setInterval(scanLoop, SCAN_INTERVAL_MS);
+}
+
+function stopScan() {
+  STATE.scanning = false;
+  clearInterval(STATE.scanInterval);
+  STATE.scanInterval = null;
+  stopCamera();
+
+  document.getElementById('screen-scan').style.display = 'none';
+  document.getElementById('screen-scan').classList.remove('scanning');
+  document.getElementById('screen-home').style.display = '';
+  document.getElementById('alert-overlay').classList.remove('active');
+  STATE.alertActive = false;
+}
+
+async function retryCamera() {
+  document.getElementById('permission-error').classList.remove('show');
+  await startScan();
+}
+
+// ─────────────────────────────────────────────
+// ÉVÉNEMENTS
+// ─────────────────────────────────────────────
+document.getElementById('btn-start').addEventListener('click', () => {
+  // Déverrouiller l'AudioContext (requis sur mobile)
+  try { getAudioCtx().resume(); } catch(e) {}
+  startScan();
+});
+
+document.getElementById('btn-stop-scan').addEventListener('click', stopScan);
+
+// ─────────────────────────────────────────────
+// INIT
+// ─────────────────────────────────────────────
+loadPersist();
+updateBlacklistCount();
+
+// Prévention scroll overscroll (iOS)
+document.addEventListener('touchmove', e => {
+  if (e.target.closest('.modal-body') || e.target.closest('.history-list')) return;
+  e.preventDefault();
+}, { passive: false });
+</script>
+</body>
+</html>
