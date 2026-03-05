@@ -837,6 +837,7 @@
       <span>Liste noire : <strong id="blacklist-count">0</strong> plaque(s) enregistrée(s)</span>
     </div>
 
+    <div id="apikey-badge" onclick="showApiKeyPrompt()" style="font-family:var(--font-mono);font-size:11px;letter-spacing:2px;color:var(--yellow);cursor:pointer;margin-bottom:16px;text-decoration:underline;"></div>
     <button id="btn-start">
       ▶ DÉMARRER LE SCAN
     </button>
@@ -954,6 +955,46 @@
       puis réessayez.
     </div>
     <button id="btn-retry-perm" onclick="retryCamera()">RÉESSAYER</button>
+  </div>
+
+
+  <!-- ══════════════════════════════════════════
+       MODAL CLÉ API
+  ══════════════════════════════════════════ -->
+  <div id="modal-apikey" style="
+    position:fixed;inset:0;z-index:500;
+    display:none;flex-direction:column;
+    align-items:center;justify-content:center;
+    background:rgba(5,5,10,0.95);
+    padding:32px 24px;gap:20px;
+  ">
+    <div style="font-size:36px">🔑</div>
+    <div style="font-family:var(--font-ui);font-weight:900;font-size:22px;
+      letter-spacing:3px;color:var(--red);text-align:center">
+      CLÉ API ANTHROPIC
+    </div>
+    <div style="font-family:var(--font-mono);font-size:11px;color:var(--text-dim);
+      text-align:center;line-height:1.8;max-width:300px">
+      Obtenez votre clé sur<br/>
+      <span style="color:var(--green)">console.anthropic.com</span><br/>
+      Elle est stockée localement sur votre téléphone.
+    </div>
+    <input id="apikey-input" type="password"
+      placeholder="sk-ant-..."
+      autocomplete="off"
+      style="width:100%;max-width:340px;
+        background:var(--surface);border:1px solid var(--border);
+        border-radius:3px;padding:14px 16px;
+        font-family:var(--font-mono);font-size:13px;
+        color:#fff;outline:none;
+        -webkit-text-security:disc;"
+    />
+    <button onclick="saveApiKey()" style="
+      width:100%;max-width:340px;height:52px;
+      background:var(--red);border:none;border-radius:3px;
+      color:#fff;font-family:var(--font-ui);font-weight:900;
+      font-size:18px;letter-spacing:3px;cursor:pointer;
+    ">CONFIRMER</button>
   </div>
 
 </div><!-- #app -->
@@ -1202,9 +1243,17 @@ FORMAT DE RÉPONSE : JSON uniquement, rien d'autre.
 {"plates": ["AB-123-CD", "EF-456-GH"]}
 Si aucune plaque : {"plates": []}`;
 
-  const resp = await fetch('/api/anthropic', {
+  const apiKey = localStorage.getItem('radar_api_key') || '';
+  if (!apiKey) { showApiKeyPrompt(); return []; }
+
+  const resp = await fetch('https://api.anthropic.com/v1/messages', {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: {
+      'Content-Type': 'application/json',
+      'x-api-key': apiKey,
+      'anthropic-version': '2023-06-01',
+      'anthropic-dangerous-direct-browser-access': 'true',
+    },
     body: JSON.stringify({
       model: 'claude-sonnet-4-20250514',
       max_tokens: 256,
@@ -1537,12 +1586,42 @@ document.getElementById('btn-stop-scan').addEventListener('click', stopScan);
 // ─────────────────────────────────────────────
 loadPersist();
 updateBlacklistCount();
+checkApiKeyStatus();
 
 // Prévention scroll overscroll (iOS)
 document.addEventListener('touchmove', e => {
   if (e.target.closest('.modal-body') || e.target.closest('.history-list')) return;
   e.preventDefault();
 }, { passive: false });
+
+// ─────────────────────────────────────────────
+// CLÉ API
+// ─────────────────────────────────────────────
+function showApiKeyPrompt() {
+  document.getElementById('modal-apikey').style.display = 'flex';
+}
+
+function saveApiKey() {
+  const key = document.getElementById('apikey-input').value.trim();
+  if (!key.startsWith('sk-ant-') && !key.startsWith('sk-')) {
+    document.getElementById('apikey-input').style.borderColor = 'var(--red)';
+    return;
+  }
+  localStorage.setItem('radar_api_key', key);
+  document.getElementById('modal-apikey').style.display = 'none';
+  document.getElementById('hud-status').textContent = 'CLÉ SAUVEGARDÉE — SCAN ACTIF';
+}
+
+// Afficher le bouton de reset clé dans l'accueil si déjà une clé
+function checkApiKeyStatus() {
+  const key = localStorage.getItem('radar_api_key');
+  const badge = document.getElementById('apikey-badge');
+  if (badge) {
+    badge.textContent = key ? '🔑 Clé configurée' : '🔑 Clé API requise';
+    badge.style.color = key ? 'var(--green)' : 'var(--yellow)';
+  }
+}
+
 </script>
 </body>
 </html>
